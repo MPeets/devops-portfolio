@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cloud-native deployment platform · Mihkel Peets</title>
+    <meta name="description" content="Case study: an API and worker on AWS ECS Fargate, managed with Terraform and shipped by GitHub Actions through OIDC, with drift detection and a Helm chart tested in kind.">
+    <meta name="theme-color" content="#0e1113">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Cloud-native deployment platform · Mihkel Peets">
+    <meta property="og:description" content="ECS Fargate, Terraform, OIDC, gated applies, drift reports and a Helm chart tested in kind.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/common.js" defer></script>
+    <script src="assets/js/platform.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="Main">
+        <a class="brand" href="index.html">MIHKEL PEETS<span>_</span></a>
+        <div class="nav-links">
+          <a href="index.html#projects">All projects</a>
+          <a href="https://github.com/MPeets">GitHub</a>
+          <a class="btn btn-primary" href="index.html#contact">Get in touch</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="wrap cs-head" aria-labelledby="title">
+        <a class="back" href="index.html#projects">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"></path></svg>
+          PROJECT 01
+        </a>
+        <h1 class="display" id="title">Cloud-native deployment platform</h1>
+        <p class="lede">A small system with a production shape: an API and a worker on ECS Fargate behind a load balancer, a private Postgres database, secrets that never touch the repo. All of it in Terraform, all of it shipped by pipelines that have to pass tests and a security scan first.</p>
+        <dl class="meta">
+          <div><dt>Role</dt><dd>Solo, design to deploy</dd></div>
+          <div><dt>Stack</dt><dd>AWS, Terraform, GitHub Actions, Helm</dd></div>
+          <div><dt>Tests</dt><dd>19 app, 8 Python, 5 Terraform modules</dd></div>
+          <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/cloud-native-deployment-platform">MPeets/cloud-native-deployment-platform</a></dd></div>
+        </dl>
+      </section>
+
+      <section class="wrap section" id="architecture" aria-labelledby="arch-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 01 · ARCHITECTURE</span>
+            <h2 class="display" id="arch-title">What runs, and why it's shaped this way</h2>
+          </div>
+          <span class="hint">Click any component</span>
+        </div>
+
+        <div class="diagram-box" data-diagram>
+          <div class="diagram-scroll">
+            <div class="diagram" style="width: 1040px; height: 536px">
+              <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+                <defs>
+                  <marker id="ah" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path class="arrow-head" fill="#7d878c" d="M0 0 L4 2 L0 4 Z"></path></marker>
+                </defs>
+              </svg>
+              <div class="band band-dashed" style="left: 224px; top: 40px; width: 784px; height: 344px"></div>
+              <div class="band band-solid" style="left: 472px; top: 88px; width: 240px; height: 280px"></div>
+
+              <svg class="arrow" width="87" height="8" viewBox="0 0 87 8" style="left: 176px; top: 160px" aria-hidden="true"><path d="M 0 4 L 83 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="79" height="8" viewBox="0 0 79 8" style="left: 424px; top: 160px" aria-hidden="true"><path d="M 0 4 L 75 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="127" height="8" viewBox="0 0 127 8" style="left: 680px; top: 160px" aria-hidden="true"><path d="M 0 4 L 123 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="127" height="8" viewBox="0 0 127 8" style="left: 680px; top: 304px" aria-hidden="true"><path d="M 0 4 L 123 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="8" height="87" viewBox="0 0 8 87" style="left: 588px; top: 345px" aria-hidden="true"><path d="M 4 87 L 4 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="8" height="87" viewBox="0 0 8 87" style="left: 888px; top: 344px" aria-hidden="true"><path d="M 4 0 L 4 83" marker-end="url(#ah)"></path></svg>
+
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 128px; width: 144px; height: 72px"
+                data-kind="Entry point" data-name="Users"
+                data-what="Traffic from the internet only ever reaches the load balancer in the public subnets. The tasks and the database sit in private subnets with no public address."
+                data-file="aws_vpc, aws_subnet"><span><b>Users</b><small>public internet</small></span></button>
+              <button class="node" type="button" aria-pressed="true" style="left: 264px; top: 128px; width: 160px; height: 72px"
+                data-kind="Ingress" data-name="Application Load Balancer"
+                data-what="Takes HTTP on port 80 and health-checks the API tasks, so a bad task leaves rotation before users notice. Point alb_certificate_arn at an ACM certificate and it adds HTTPS with a redirect."
+                data-file="aws_lb, aws_lb_target_group, aws_lb_listener"><span><b>ALB</b><small>load balancer</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 504px; top: 128px; width: 176px; height: 72px"
+                data-kind="ECS Fargate" data-name="API service"
+                data-what="The containerized API, running in private subnets. No EC2 hosts to patch. VPC endpoints for ECR, CloudWatch Logs and S3 keep that traffic off the public internet. 14 tests cover health, CRUD, validation and errors."
+                data-file="aws_ecs_service, aws_ecs_task_definition, aws_vpc_endpoint"><span><b>API</b><small>Fargate service</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 504px; top: 272px; width: 176px; height: 72px"
+                data-kind="ECS Fargate" data-name="Worker service"
+                data-what="Background jobs run as their own private service and claim work from Postgres, so they scale and fail separately from the API. 5 tests cover the state machine, retries included."
+                data-file="aws_ecs_service, aws_ecs_task_definition"><span><b>Worker</b><small>Fargate service</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 808px; top: 128px; width: 168px; height: 216px"
+                data-kind="Data" data-name="RDS PostgreSQL"
+                data-what="Managed Postgres in private subnets, reachable only from the tasks. Heavier than bundling a database container, but persistence and its failure modes become explicit."
+                data-file="aws_db_instance, aws_db_subnet_group"><span><b>RDS</b><small>PostgreSQL, private</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 504px; top: 432px; width: 176px; height: 72px"
+                data-kind="Secrets" data-name="Secrets Manager"
+                data-what="Holds DATABASE_URL. The tasks read it when they start, so it never lives in the image, the repo or CI variables."
+                data-file="aws_secretsmanager_secret"><span><b>Secrets Manager</b><small>DATABASE_URL</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 808px; top: 432px; width: 168px; height: 72px"
+                data-kind="Alerting" data-name="CloudWatch + SNS"
+                data-what="Logs, metrics and alarms for ALB 5xx errors, ECS capacity, and RDS storage and CPU. Alarms publish to SNS. A separate workflow pulls and classifies logs for incident review."
+                data-file="aws_cloudwatch_metric_alarm, aws_sns_topic"><span><b>CloudWatch</b><small>alarms to SNS</small></span></button>
+
+              <span class="d-label" style="left: 240px; top: 52px">VPC · PUBLIC: ALB · PRIVATE: TASKS, RDS</span>
+              <span class="d-label" style="left: 488px; top: 98px">ECS FARGATE</span>
+              <span class="d-note" style="left: 604px; top: 380px; width: 156px">read at task start</span>
+              <span class="d-note" style="left: 904px; top: 380px; width: 64px">metrics</span>
+            </div>
+          </div>
+          <div class="inspector" aria-live="polite">
+            <div class="inspector-title">
+              <span class="label" data-insp="kind">Ingress</span>
+              <span class="inspector-name" data-insp="name">Application Load Balancer</span>
+            </div>
+            <div class="inspector-body">
+              <p data-insp="what">Takes HTTP on port 80 and health-checks the API tasks, so a bad task leaves rotation before users notice. Point alb_certificate_arn at an ACM certificate and it adds HTTPS with a redirect.</p>
+              <span class="inspector-file">terraform: <span data-insp="file">aws_lb, aws_lb_target_group, aws_lb_listener</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="pipeline" aria-labelledby="pipeline-title">
+        <div class="wrap section stackv" data-pipeline data-tick="750">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 02 · PIPELINE</span>
+              <h2 class="display" id="pipeline-title">Every change goes through the same gates</h2>
+              <p class="muted">Tests and scans run before anything gets planned, and apply waits for a human. Replay a run, or switch on a security finding and watch it stop. The stages match the real workflows; the output is representative.</p>
+            </div>
+            <div class="toolbar">
+              <label class="toggle"><input type="checkbox" data-fail-toggle> Inject a security finding</label>
+              <button class="btn btn-primary" type="button" data-run>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"></path></svg>
+                <span data-run-label>Run pipeline</span>
+              </button>
+            </div>
+          </div>
+
+          <ol class="plain stages" aria-label="Pipeline stages">
+            <li><button class="stage" type="button" aria-pressed="true" data-status="queued" data-log="app/test/app.test.js       14 passed&#10;worker/test/worker.test.js  5 passed"><span class="num">01</span><span class="stage-text"><span class="stage-name">Unit tests</span><span class="stage-tool">node:test · api + worker</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="docker build api, worker&#10;start the API image, run scripts/health_check.py on :3000&#10;push both images to Docker Hub, tagged with the commit SHA"><span class="num">02</span><span class="stage-text"><span class="stage-name">Image build</span><span class="stage-tool">docker · health check</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="helm lint k8s/&#10;kind create cluster (config in k8s/ci/)&#10;helm install, migration Job completes&#10;api and worker ready"><span class="num">03</span><span class="stage-text"><span class="stage-name">Helm in kind</span><span class="stage-tool">helm · kind</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="terraform fmt -check -recursive&#10;terraform validate&#10;tflint"><span class="num">04</span><span class="stage-text"><span class="stage-name">Terraform checks</span><span class="stage-tool">fmt · validate · tflint</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="tfsec infra/&#10;No problems detected!" data-fail="tfsec infra/&#10;Result #1 HIGH  Security group rule allows ingress from 0.0.0.0/0&#10;  aws_security_group_rule.db_ingress&#10;&#10;1 potential problem detected.&#10;Stopping here. Nothing gets planned or applied."><span class="num">05</span><span class="stage-text"><span class="stage-name">Security scan</span><span class="stage-tool">tfsec</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="GitHub OIDC token -&gt; sts:AssumeRoleWithWebIdentity&#10;Short-lived credentials for this run only.&#10;No AWS keys stored in GitHub."><span class="num">06</span><span class="stage-text"><span class="stage-name">Assume role</span><span class="stage-tool">oidc</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="terraform plan (envs/prod)&#10;image tags resolved from the latest green ci.yml run on main"><span class="num">07</span><span class="stage-text"><span class="stage-name">Plan</span><span class="stage-tool">terraform</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-gate data-log="confirm_apply=apply&#10;approved in the production environment&#10;terraform apply&#10;ECS services roll out the new task definitions"><span class="num">08</span><span class="stage-text"><span class="stage-name">Apply</span><span class="stage-tool">manual gate · production</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+            <li><button class="stage" type="button" aria-pressed="false" data-status="queued" data-log="scripts/health_check.py&#10;ALB liveness and /health&#10;ECS service capacity and recent deployment events&#10;stopped-task reasons, recent CloudWatch errors"><span class="num">09</span><span class="stage-text"><span class="stage-name">Health check</span><span class="stage-tool">health_check.py</span></span><span class="stage-status"><span class="icon"></span><span data-status-text>queued</span></span></button></li>
+          </ol>
+
+          <div class="log">
+            <div class="log-head">
+              <span data-log-title>stage 1 · Unit tests</span>
+              <span data-log-status>queued</span>
+            </div>
+            <pre data-log-text aria-live="polite">Waiting for a run.</pre>
+          </div>
+
+          <div class="banner" data-banner data-tone="idle">
+            <span data-banner-text>Press Run pipeline to replay a run.</span>
+            <button class="btn btn-primary" type="button" data-approve hidden>Approve deploy</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section" id="drift" aria-labelledby="drift-title">
+        <div class="split" data-drift-demo>
+          <div class="split-copy">
+            <span class="eyebrow">// 03 · OPERATIONS</span>
+            <h2 class="display" id="drift-title">Catching changes made by hand</h2>
+            <p>Someone fixes something in the AWS console at 2am and never tells Terraform. A scheduled job runs a JSON plan with detailed exit codes, filters the noise and reports what drifted.</p>
+            <ul class="plain bullets">
+              <li><b>Drift report</b> runs weekday mornings and on demand, written to the job summary and kept as an artifact.</li>
+              <li><b>Incident log pull</b> fetches CloudWatch Logs for a time window and sorts events into ERROR, WARN, INFO and UNKNOWN, through a least-privilege OIDC role.</li>
+              <li><b>Post-deploy health check</b> looks at the ALB, /health, ECS capacity, stopped-task reasons and recent errors.</li>
+            </ul>
+            <div class="actions">
+              <button class="btn btn-outline" type="button" data-drift-toggle>Simulate a console change</button>
+            </div>
+          </div>
+          <div class="split-main log">
+            <div class="log-head">
+              <span>scripts/terraform_drift_report.py</span>
+              <span class="pill pill-ok" data-drift-pill>IN SYNC</span>
+            </div>
+<pre class="report" data-drift-state="sync">terraform plan -detailed-exitcode -json  (envs/prod)
+exit code 0
+
+No drift. Live infrastructure matches the configuration.
+creates 0 · updates 0 · replacements 0 · deletes 0</pre>
+<pre class="report" data-drift-state="drift" hidden>terraform plan -detailed-exitcode -json  (envs/prod)
+exit code 2
+
+update  aws_ecs_service.api        desired_count  2 -&gt; 4
+update  aws_security_group.alb     ingress        +22/tcp
+
+creates 0 · updates 2 · replacements 0 · deletes 0
+Report written to the job summary.  (simulated example)</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="kubernetes" aria-labelledby="k8s-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 04 · KUBERNETES</span>
+              <h2 class="display" id="k8s-title">Same app, packaged for Kubernetes</h2>
+              <p class="muted">A Helm chart for the API, the worker and a migration Job. CI lints it, then installs it into a throwaway kind cluster on every run.</p>
+            </div>
+          </div>
+          <div class="flow">
+            <div class="flow-step"><code>helm lint</code><span>Chart in k8s/ checked first</span></div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg>
+            <div class="flow-step"><code>kind create cluster</code><span>Config lives in k8s/ci/</span></div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg>
+            <div class="flow-step"><code>migration Job</code><span>Runs as a hook before the app</span></div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg>
+            <div class="flow-step"><code>api + worker</code><span>Deployments roll out</span></div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg>
+            <div class="flow-step"><code>smoke test</code><span>Cluster thrown away after</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section" id="tradeoffs" aria-labelledby="tradeoffs-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 05 · TRADEOFFS</span>
+            <h2 class="display" id="tradeoffs-title">Decisions I'd defend, and what they cost</h2>
+          </div>
+        </div>
+        <div class="grid-4">
+          <div class="panel panel-stack">
+            <h3>Fargate behind an ALB</h3>
+            <p>More AWS than a small API needs. In return: private tasks, a single public entry point, health checks, rolling deploys and clear IAM boundaries.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>RDS and Secrets Manager</h3>
+            <p>Heavier and pricier than a Postgres container. Worth it to make persistence, its failure modes and who owns them explicit.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>OIDC instead of keys</h3>
+            <p>Safer than stored AWS keys, but a broken trust policy can look exactly like a broken deploy. Knowing that is half the debugging.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Separate plan, apply, destroy</h3>
+            <p>Limits the blast radius. Apply needs a confirmation and an approval, destroy is manual only, and rollback is an apply with a known-good image SHA.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap next-wrap" aria-label="Next project">
+        <a class="next" href="lab.html">
+          <span><span class="label">Next project</span><strong>Air-gapped observability lab</strong></span>
+          <svg width="28" height="28" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer">
+        <span>Tested and deployed by GitHub Actions to GitHub Pages</span>
+        <span>build <a data-build href="https://github.com/MPeets/devops-portfolio/actions">local</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
