@@ -4,11 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Mihkel Peets · DevOps / SRE</title>
-    <meta name="description" content="DevOps and SRE portfolio of Mihkel Peets in Tallinn. Terraform on AWS, GitHub Actions with OIDC, Kubernetes, and an air-gapped Prometheus and Grafana stack.">
+    <meta name="description" content="DevOps and SRE portfolio of Mihkel Peets in Tallinn. Terraform on AWS, GitHub Actions with OIDC, Kubernetes, an air-gapped Prometheus and Grafana stack, and test automation in Java.">
     <meta name="theme-color" content="#0e1113">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Mihkel Peets · DevOps / SRE">
-    <meta property="og:description" content="Infrastructure, tested like product code. Two public projects: a cloud-native platform on AWS and an air-gapped observability lab.">
+    <meta property="og:description" content="Infrastructure, tested like product code. A cloud-native platform on AWS, an air-gapped observability lab, and a test automation take-home.">
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,6 +25,7 @@
         <a class="brand" href="index.html">MIHKEL PEETS<span>_</span></a>
         <div class="nav-links">
           <a href="#projects">Projects</a>
+          <a href="#why-qa">Why QA</a>
           <a href="#background">Background</a>
           <a href="#stack">Stack</a>
           <a href="https://github.com/MPeets">GitHub</a>
@@ -62,6 +63,7 @@
               <button class="cmd" type="button" aria-pressed="false" data-cmd="ps" data-cwd="~/airgapped-observability-lab">docker compose ps</button>
               <button class="cmd" type="button" aria-pressed="false" data-cmd="pods" data-cwd="~/cloud-native-deployment-platform (kind, in CI)">kubectl get pods</button>
               <button class="cmd" type="button" aria-pressed="false" data-cmd="drift" data-cwd="~/cloud-native-deployment-platform">terraform_drift_report.py</button>
+              <button class="cmd" type="button" aria-pressed="false" data-cmd="gradle" data-cwd="~/luminor-qa-task">./gradlew apiTest</button>
             </div>
             <div class="terminal-body" aria-live="polite">
               <div class="faint" data-term-cwd>~/airgapped-observability-lab</div>
@@ -96,6 +98,19 @@ migrate-t7w9k             0/1     Completed   0</pre>
 
 No changes. Live infrastructure matches the configuration.
 creates 0 · updates 0 · replacements 0 · deletes 0</pre>
+<pre data-out="gradle" hidden>&gt; Task :apiTest
+PetFactoryTest &gt; Factory assigns a unique positive id PASSED
+PetSanityTest &gt; Unknown pet id returns 404 PASSED
+PetSanityTest &gt; POST with a malformed body returns 400 PASSED
+PetSanityTest &gt; Create a pet PASSED
+PetSanityTest &gt; GET with a non-numeric id returns 404 PASSED
+PetSanityTest &gt; Retrieve a created pet PASSED
+PetSanityTest &gt; Delete a created pet PASSED
+PetSanityTest &gt; Update pet name and status PASSED
+PetSanityTest &gt; Delete of an already-deleted pet returns 404 PASSED
+PetSanityTest &gt; Updated pet is returned by findByStatus sold PASSED
+
+BUILD SUCCESSFUL</pre>
             </div>
           </div>
         </section>
@@ -105,9 +120,9 @@ creates 0 · updates 0 · replacements 0 · deletes 0</pre>
         <div class="section-head">
           <div>
             <span class="eyebrow">// PROJECTS</span>
-            <h2 class="display" id="projects-title">Two systems, built in public</h2>
+            <h2 class="display" id="projects-title">Three projects, built in public</h2>
           </div>
-          <p>Both repos are public and built one commit at a time, with the reasoning written down. Each case study has the architecture and something you can poke at.</p>
+          <p>All three repos are public and built one commit at a time, with the reasoning written down. Each case study shows how it's put together and has something you can poke at.</p>
         </div>
 
         <div class="cards">
@@ -196,6 +211,48 @@ creates 0 · updates 0 · replacements 0 · deletes 0</pre>
               <a class="text-link" href="https://github.com/MPeets/airgapped-observability-lab">View the repo</a>
             </div>
           </article>
+
+          <article class="card card-wide">
+            <div class="card-top">
+              <span>03 / luminor-qa-task</span>
+              <span class="card-status" data-repo="MPeets/luminor-qa-task" data-workflow="build.yml">
+                <span class="pill pill-muted" data-ci>CI status</span>
+                <span data-pushed></span>
+              </span>
+            </div>
+            <div class="card-split">
+              <div class="card-main">
+                <h3>Test automation take-home</h3>
+                <p>Luminor's take-home for a QA automation role, in the stack the brief set: Java 21, Gradle, JUnit 5, RestAssured and Selenide. API checks against the public Petstore and a UI journey on luminor.lv, both live systems I don't control. The real work was keeping the tests honest when the other side misbehaves, and it's the clearest example of the tester habits I bring to infrastructure.</p>
+                <ul class="plain tags" aria-label="Stack">
+                  <li>Java 21</li>
+                  <li>Gradle</li>
+                  <li>JUnit 5</li>
+                  <li>RestAssured</li>
+                  <li>Selenide</li>
+                  <li>Allure</li>
+                  <li>GitHub Actions</li>
+                </ul>
+                <div class="card-links">
+                  <a class="btn btn-outline" href="qa-task.html">
+                    Open the case study
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+                  </a>
+                  <a class="text-link" href="https://github.com/MPeets/luminor-qa-task">View the repo</a>
+                </div>
+              </div>
+              <div class="inset">
+                <span class="label">What the live systems did that the brief didn't mention</span>
+                <ul class="plain quirks">
+                  <li>A pet you just created can still 404 on the next read</li>
+                  <li>Everyone shares the sandbox, so server-picked ids collide</li>
+                  <li>Connections sometimes hang with no answer at all</li>
+                  <li>Every menu exists twice in the DOM, one of them hidden</li>
+                  <li>CI runners get a Cloudflare challenge, not the site</li>
+                </ul>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -216,6 +273,52 @@ creates 0 · updates 0 · replacements 0 · deletes 0</pre>
           <div class="stat">
             <span class="stat-num">200+</span>
             <p>remote pumping stations I watch over on night shifts at Tallinn's wastewater plant</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section" id="why-qa" aria-labelledby="why-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// WHY QA</span>
+            <h2 class="display" id="why-title">Testers already think in failure modes</h2>
+            <p class="muted">A lot of SRE comes down to two questions: what happens when this breaks, and how would we know? That's a tester's whole job. These are the habits I brought over from QA, and where you can see them in the projects above.</p>
+          </div>
+        </div>
+        <div class="grid-4">
+          <div class="panel panel-stack">
+            <h3>Red has to mean broken</h3>
+            <p>A flaky test teaches people to hit re-run. A noisy alert teaches them to mute the channel. Same problem, different layer. I'd rather skip honestly than fail for the wrong reason.</p>
+            <ul class="plain seen" aria-label="Where it shows">
+              <li><a href="qa-task.html#ci">Take-home: skip on Cloudflare, don't fail</a></li>
+              <li><a href="lab.html#simulate">Lab: pending windows and a Watchdog</a></li>
+            </ul>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Assume the other end is unreliable</h3>
+            <p>Live systems lag, hang and half-answer. So I poll for the state I need instead of sleeping, put a timeout on every call, and check health from the outside, the way a user would.</p>
+            <ul class="plain seen" aria-label="Where it shows">
+              <li><a href="qa-task.html#polling">Take-home: poll, don't sleep</a></li>
+              <li><a href="lab.html#inside">Lab: blackbox probes</a></li>
+              <li><a href="platform.html#drift">Platform: post-deploy health check</a></li>
+            </ul>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Test what ships, not just the code</h3>
+            <p>Outages rarely come from the function with full coverage. They come from a security group, an alert rule nobody tested, an install step that only works online. So those get tests too, and they run before production.</p>
+            <ul class="plain seen" aria-label="Where it shows">
+              <li><a href="platform.html#pipeline">Platform: tfsec before plan, gated apply</a></li>
+              <li><a href="lab.html#install">Lab: offline install rehearsed in CI</a></li>
+            </ul>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Check the real thing, then clean up</h3>
+            <p>A pass from last week says nothing about a live system today, and test data left lying around breaks the next run. Check what's actually there, own your data, and leave things the way you found them.</p>
+            <ul class="plain seen" aria-label="Where it shows">
+              <li><a href="qa-task.html#findings">Take-home: own ids, tests clean up</a></li>
+              <li><a href="platform.html#drift">Platform: drift reports</a></li>
+              <li><a href="platform.html#kubernetes">Platform: throwaway kind cluster</a></li>
+            </ul>
           </div>
         </div>
       </section>
@@ -288,11 +391,11 @@ creates 0 · updates 0 · replacements 0 · deletes 0</pre>
           </div>
           <div class="panel panel-stack">
             <h3 class="label">Testing</h3>
-            <ul class="plain chips"><li>Cypress</li><li>promtool</li><li>node:test</li><li>shellcheck</li><li>API testing</li></ul>
+            <ul class="plain chips"><li>Cypress</li><li>Selenide</li><li>RestAssured</li><li>JUnit 5</li><li>Allure</li><li>promtool</li><li>node:test</li><li>shellcheck</li></ul>
           </div>
           <div class="panel panel-stack">
             <h3 class="label">Scripting + data</h3>
-            <ul class="plain chips"><li>Python</li><li>Bash</li><li>Linux CLI</li><li>PostgreSQL</li><li>Oracle PL/SQL</li></ul>
+            <ul class="plain chips"><li>Python</li><li>Java</li><li>Bash</li><li>Linux CLI</li><li>PostgreSQL</li><li>Oracle PL/SQL</li></ul>
           </div>
         </div>
       </section>
