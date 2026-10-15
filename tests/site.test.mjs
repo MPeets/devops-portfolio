@@ -9,7 +9,7 @@ import jsdom from "jsdom";
 
 const { JSDOM, VirtualConsole, requestInterceptor } = jsdom;
 const SITE = fileURLToPath(new URL("../site/", import.meta.url));
-const PAGES = ["index.html", "platform.html", "lab.html", "404.html"];
+const PAGES = ["index.html", "platform.html", "lab.html", "qa-task.html", "404.html"];
 
 // Load local scripts and styles, answer anything on the network (fonts) with
 // an empty response so the tests never leave the machine.
@@ -209,6 +209,72 @@ test("lab: switching scenario shows that rule and resets the lifecycle", async (
   assert.match(root.querySelector("[data-sim-rule]").textContent, /86400 < 30/);
   assert.match(root.querySelector('[data-lc="3"] .lc-desc').textContent, /team/);
   assert.match(root.querySelector("[data-sim-path]").getAttribute("d"), /^M [\d.]+ [\d.]+( L [\d.]+ [\d.]+)+$/);
+  close();
+});
+
+test("take-home: the findings filter shows only the chosen area", async () => {
+  const { document, close } = await open("qa-task.html");
+  const root = document.querySelector("[data-findings]");
+  const visible = () => Array.from(root.querySelectorAll("[data-area]")).filter((c) => !c.hidden);
+  const total = root.querySelectorAll("[data-area]").length;
+
+  for (const area of ["api", "ui", "ci"]) {
+    click(root.querySelector(`[data-filter="${area}"]`));
+    assert.ok(visible().length > 0, `${area} has findings`);
+    assert.ok(visible().every((c) => c.getAttribute("data-area") === area));
+    assert.equal(root.querySelector("[data-filter-count]").textContent, `${visible().length} of ${total}`);
+  }
+  click(root.querySelector('[data-filter="all"]'));
+  assert.equal(visible().length, total);
+  close();
+});
+
+test("take-home: polling never fails, and a longer sleep fails less", async () => {
+  const { window, document, close } = await open("qa-task.html");
+  const root = document.querySelector("[data-race]");
+  root.setAttribute("data-seed", "7");
+  const select = root.querySelector("[data-sleep]");
+  const failed = (row) => Number(root.querySelector(`[data-row="${row}"] [data-sum-failed]`).textContent);
+  const pick = (value) => {
+    select.value = value;
+    select.dispatchEvent(new window.Event("change", { bubbles: true }));
+  };
+
+  pick("250");
+  const short = failed("sleep");
+  assert.ok(short > 0, "a 250ms sleep loses some runs");
+  assert.equal(failed("poll"), 0);
+  assert.equal(root.querySelectorAll('[data-row="sleep"] [data-chart] g').length, 30);
+  assert.equal(root.querySelectorAll('[data-row="poll"] [data-chart] g').length, 30);
+
+  pick("2000");
+  assert.ok(failed("sleep") <= short);
+  assert.equal(failed("poll"), 0);
+  assert.equal(root.querySelector("[data-sleep-label]").textContent, "2s");
+
+  const hollow = root.querySelectorAll('[data-row="sleep"] path[fill="none"]').length;
+  assert.equal(hollow, failed("sleep"), "every failed run is drawn hollow");
+
+  click(root.querySelector("[data-race-run]"));
+  assert.equal(root.getAttribute("data-seed"), "8");
+  assert.equal(failed("poll"), 0);
+  close();
+});
+
+test("take-home: the journey stepper walks all six steps", async () => {
+  const { document, close } = await open("qa-task.html");
+  const root = document.querySelector("#journey [data-stepper]");
+  const shown = () => Array.from(root.querySelectorAll("[data-step-detail]")).filter((d) => !d.hidden);
+  const next = root.querySelector("[data-step-next]");
+
+  for (let i = 0; i < 5; i++) click(next);
+  assert.equal(shown().length, 1);
+  assert.equal(shown()[0].getAttribute("data-step-detail"), "5");
+  assert.equal(next.disabled, true);
+
+  click(root.querySelector('[data-step="2"]'));
+  assert.equal(shown()[0].getAttribute("data-step-detail"), "2");
+  assert.equal(root.querySelector('[data-step="2"]').getAttribute("aria-pressed"), "true");
   close();
 });
 

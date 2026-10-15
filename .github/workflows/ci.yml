@@ -102,3 +102,4 @@ jobs:
           --collect.url="${SITE_URL}"
           --collect.url="${SITE_URL}platform.html"
           --collect.url="${SITE_URL}lab.html"
+          --collect.url="${SITE_URL}qa-task.html"

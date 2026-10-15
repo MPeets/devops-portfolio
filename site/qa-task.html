@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test automation take-home · Mihkel Peets</title>
+    <meta name="description" content="Case study: API and UI test automation in Java against live systems I don't control, and how the suite stays honest when they misbehave.">
+    <meta name="theme-color" content="#0e1113">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Test automation take-home · Mihkel Peets">
+    <meta property="og:description" content="RestAssured and Selenide against a shared sandbox API and a live bank website. Polling instead of sleeping, timeouts, cleanup, and CI that skips instead of lying.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/common.js" defer></script>
+    <script src="assets/js/qa-task.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="Main">
+        <a class="brand" href="index.html">MIHKEL PEETS<span>_</span></a>
+        <div class="nav-links">
+          <a href="index.html#projects">All projects</a>
+          <a href="https://github.com/MPeets">GitHub</a>
+          <a class="btn btn-primary" href="index.html#contact">Get in touch</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="wrap cs-head" aria-labelledby="title">
+        <a class="back" href="index.html#projects">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"></path></svg>
+          PROJECT 03
+        </a>
+        <h1 class="display" id="title">Test automation take-home</h1>
+        <p class="lede">Luminor's brief for a QA automation role: API sanity checks for the public Petstore and one UI journey on luminor.lv, in a fixed Java stack. Both are live systems I don't control. Writing the tests was the easy part. Making them tell the truth was the work.</p>
+        <dl class="meta">
+          <div><dt>Brief</dt><dd>Luminor, QA Automation Engineer</dd></div>
+          <div><dt>Stack</dt><dd>Java 21, Gradle, JUnit 5, RestAssured, Selenide, Allure</dd></div>
+          <div><dt>Built</dt><dd>40 commits over 3 days</dd></div>
+          <div><dt>Outcome</dt><dd>Passed the take-home review</dd></div>
+          <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/luminor-qa-task">MPeets/luminor-qa-task</a></dd></div>
+        </dl>
+      </section>
+
+      <section class="section-alt" id="findings" aria-labelledby="findings-title">
+        <div class="wrap section stackv" data-findings>
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 01 · WHAT THE DOCS DON'T SAY</span>
+              <h2 class="display" id="findings-title">The live systems disagreed with the brief</h2>
+              <p class="muted">Every one of these broke a test at some point. Each card is what I expected, what actually happened, and what the suite does about it now.</p>
+            </div>
+            <div class="toolbar">
+              <div class="filters" role="group" aria-label="Filter findings">
+                <button class="filter" type="button" aria-pressed="true" data-filter="all">All</button>
+                <button class="filter" type="button" aria-pressed="false" data-filter="api">API</button>
+                <button class="filter" type="button" aria-pressed="false" data-filter="ui">UI</button>
+                <button class="filter" type="button" aria-pressed="false" data-filter="ci">CI</button>
+              </div>
+              <span class="hint" data-filter-count>8 of 8</span>
+            </div>
+          </div>
+
+          <ul class="plain findings">
+            <li class="finding" data-area="api">
+              <div class="finding-head"><h3>Writes aren't readable right away</h3><span class="area">API</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>Create a pet, read it straight back.</dd></div>
+                <div><dt>Observed</dt><dd>POST returns 200 and the next GET can still 404. After a DELETE, GET can still return the pet for a moment.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Polls every 250ms, for up to 10s, until the pet is readable or gone. No fixed sleeps.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="api">
+              <div class="finding-head"><h3>It's a shared sandbox</h3><span class="area">API</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>My test data is mine.</dd></div>
+                <div><dt>Observed</dt><dd>Everyone writes to the same Petstore. Ids the server picks collide with other people's pets.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Generates large ids client-side, tracks what each test made and deletes it afterwards. That's also why the tests can run in parallel.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="api">
+              <div class="finding-head"><h3>Create returns 200, not 201</h3><span class="area">API</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>201 Created, by REST convention.</dd></div>
+                <div><dt>Observed</dt><dd>The live API answers 200.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Asserts what the system actually does, and the README says why.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="api">
+              <div class="finding-head"><h3>Sometimes it just hangs</h3><span class="area">API</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>Every request gets an answer.</dd></div>
+                <div><dt>Observed</dt><dd>A connection to the sandbox can sit there indefinitely.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Times out connect, socket and pool after 10s. A hung Petstore fails one test instead of hanging the whole build.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="api">
+              <div class="finding-head"><h3>Errors leak implementation details</h3><span class="area">API</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>A clean 404 for a non-numeric id.</dd></div>
+                <div><dt>Observed</dt><dd>It is a 404, but the body names a Java NumberFormatException.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Asserts the 404 and deliberately doesn't pin the message. A leak is a bug to report, not a contract to lock in.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="ui">
+              <div class="finding-head"><h3>Two of every menu</h3><span class="area">UI</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>One "Site menu" button on the page.</dd></div>
+                <div><dt>Observed</dt><dd>Desktop and mobile menus are both in the DOM. The first match is often the hidden one.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Finds controls by role and visible name, and always takes the visible one. No CSS classes.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="ui">
+              <div class="finding-head"><h3>"Open" isn't open yet</h3><span class="area">UI</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>The 2026 reports section is open on load.</dd></div>
+                <div><dt>Observed</dt><dd>It starts with aria-expanded=false and flips to true a beat later.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Waits for the attribute to become true instead of reading it once. Load timing isn't a bug.</dd></div>
+              </dl>
+            </li>
+            <li class="finding" data-area="ci">
+              <div class="finding-head"><h3>CI can't see the site</h3><span class="area">CI</span></div>
+              <dl>
+                <div><dt>Expected</dt><dd>A GitHub runner can open luminor.lv.</dd></div>
+                <div><dt>Observed</dt><dd>Runners get a Cloudflare challenge instead of the page.</dd></div>
+                <div><dt>So the suite</dt><dd class="fix">Detects Cloudflare's own markup and aborts as skipped. Red is reserved for "the site is broken".</dd></div>
+              </dl>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="polling" aria-labelledby="polling-title" data-race data-seed="1">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 02 · SLEEP VS POLL</span>
+            <h2 class="display" id="polling-title">Why the suite polls instead of sleeping</h2>
+            <p class="muted">A fixed sleep is a guess. Too short and the test fails for nothing. Too long and every run pays for the worst case. Polling waits exactly as long as it has to. Run the same 30 creates both ways and compare. The lag is simulated; the poll settings are the suite's real ones.</p>
+          </div>
+          <div class="toolbar">
+            <label class="toggle">Sleep for
+              <select class="select" data-sleep>
+                <option value="250">250ms</option>
+                <option value="500" selected>500ms</option>
+                <option value="1000">1s</option>
+                <option value="2000">2s</option>
+              </select>
+            </label>
+            <button class="btn btn-primary" type="button" data-race-run>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"></path></svg>
+              Run 30 creates
+            </button>
+          </div>
+        </div>
+
+        <div class="race">
+          <div class="race-row" data-row="sleep">
+            <div class="race-head">
+              <span class="race-name">Fixed sleep, <span data-sleep-label>500ms</span></span>
+              <span class="race-sum"><b data-sum-failed>0</b> of 30 failed · <b data-sum-wait>0s</b> waiting · <b data-sum-gets>0</b> GETs</span>
+            </div>
+            <svg class="bars" viewBox="0 0 720 120" role="img" aria-label="Fixed sleep results" data-chart></svg>
+          </div>
+          <div class="race-row" data-row="poll">
+            <div class="race-head">
+              <span class="race-name">Poll every 250ms, up to 10s</span>
+              <span class="race-sum"><b data-sum-failed>0</b> of 30 failed · <b data-sum-wait>0s</b> waiting · <b data-sum-gets>0</b> GETs</span>
+            </div>
+            <svg class="bars" viewBox="0 0 720 120" role="img" aria-label="Polling results" data-chart></svg>
+          </div>
+          <div class="legend">
+            <span class="key"><span class="key-bar"></span>passed: bar is time spent waiting</span>
+            <span class="key"><span class="key-fail"></span>failed: GET still 404</span>
+            <span class="key"><span class="key-tick"></span>when the pet actually became readable</span>
+            <span data-scale>scale 0 to 2s, same for both</span>
+          </div>
+          <p class="banner" data-race-verdict aria-live="polite">Press Run to compare.</p>
+        </div>
+      </section>
+
+      <section class="section-alt" id="journey" aria-labelledby="journey-title">
+        <div class="wrap section stackv" data-stepper>
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 03 · THE UI JOURNEY</span>
+              <h2 class="display" id="journey-title">Six steps, and the locator behind each</h2>
+              <p class="muted">Home, site menu, About Us, Financial reports, then check the 2026 section is open with a PDF in it. Every locator goes through roles and visible text, the way a person or a screen reader finds things.</p>
+            </div>
+          </div>
+
+          <div class="journey" role="group" aria-label="Journey steps">
+            <button class="step-btn" type="button" aria-pressed="true" data-step="0"><span class="n">1</span>Open the site</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="1"><span class="n">2</span>Accept cookies</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="2"><span class="n">3</span>Site menu</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="3"><span class="n">4</span>About Us</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="4"><span class="n">5</span>Financial reports</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="5"><span class="n">6</span>2026 has a PDF</button>
+          </div>
+
+          <div class="step-panel" aria-live="polite">
+            <div class="step-detail" data-step-detail="0">
+              <span class="eyebrow">STEP 1 OF 6</span>
+              <h3>Open the site, or say why not</h3>
+              <p>Ready means the cookie banner or the site menu exists. If Cloudflare's challenge markup is there instead, the test aborts as skipped with a note to run it locally. It checks markup, not English text, so a Latvian or Russian challenge page counts too.</p>
+<pre>Selenide.open("https://luminor.lv/en");
+Wait().withTimeout(Duration.ofSeconds(15))
+    .until(driver -&gt; siteReady() &amp;&amp; !cloudflareChallenge());</pre>
+            </div>
+            <div class="step-detail" data-step-detail="1" hidden>
+              <span class="eyebrow">STEP 2 OF 6</span>
+              <h3>Accept cookies if they ask</h3>
+              <p>The button looks all caps, but that's CSS. The accessible name might not be, so the match ignores case. CI is a fresh browser every time, so the banner shows up there more often than locally.</p>
+<pre>$(byRole("button", "ACCEPT ALL",
+    fullText().caseInsensitive()))</pre>
+            </div>
+            <div class="step-detail" data-step-detail="2" hidden>
+              <span class="eyebrow">STEP 3 OF 6</span>
+              <h3>Open the site menu</h3>
+              <p>Desktop and mobile versions of the menu are both in the DOM. Taking the first match clicks something invisible half the time, so it takes the visible one.</p>
+<pre>$$(byRole("button", "Site menu")).find(visible)</pre>
+            </div>
+            <div class="step-detail" data-step-detail="3" hidden>
+              <span class="eyebrow">STEP 4 OF 6</span>
+              <h3>About Us</h3>
+              <p>After each click it waits until aria-expanded says true or the next control is visible, whichever comes first. Sometimes the panel shows up before the attribute does.</p>
+<pre>$$(byRole("button", "About Us")).find(visible)</pre>
+            </div>
+            <div class="step-detail" data-step-detail="4" hidden>
+              <span class="eyebrow">STEP 5 OF 6</span>
+              <h3>Financial reports</h3>
+              <p>The page counts as loaded when its heading is visible, not when the URL changes.</p>
+<pre>$$(byRole("link", "Financial Reports")).find(visible)
+$(byRole("heading", "Financial reports")).shouldBe(visible)</pre>
+            </div>
+            <div class="step-detail" data-step-detail="5" hidden>
+              <span class="eyebrow">STEP 6 OF 6</span>
+              <h3>The 2026 section is open, with a PDF</h3>
+              <p>Wait for aria-expanded to turn true, then look for links inside that year's panel only, not the whole page. A link existing isn't enough; the href has to look like a PDF.</p>
+<pre>title.shouldHave(attribute("aria-expanded", "true"));
+panel.$$(byRole("link"))
+    .filter(attributeMatching("href", ".*\\.pdf(\\?.*)?"))
+    .shouldHave(sizeGreaterThan(0));</pre>
+            </div>
+            <div class="step-nav">
+              <button class="btn btn-ghost" type="button" data-step-prev disabled>Back</button>
+              <button class="btn btn-primary" type="button" data-step-next>Next step</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="ci" aria-labelledby="ci-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 04 · CI THAT TELLS THE TRUTH</span>
+            <h2 class="display" id="ci-title">Red means the site is broken. Nothing else.</h2>
+            <p class="muted">The API suite runs on every push. The UI suite is a manual run, because GitHub's runners get a Cloudflare challenge on luminor.lv. Rather than fight it or let it go red, the test tells the three situations apart.</p>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="panel panel-stack">
+            <span class="pill pill-ok">PASSED</span>
+            <h3>The site works</h3>
+            <p>The journey completes and the 2026 report PDF is there.</p>
+          </div>
+          <div class="panel panel-stack">
+            <span class="pill pill-bad">FAILED</span>
+            <h3>The site is broken</h3>
+            <p>A step times out or the PDF is missing. This is the only case that goes red, so red always gets looked at.</p>
+          </div>
+          <div class="panel panel-stack">
+            <span class="pill pill-muted">SKIPPED</span>
+            <h3>Cloudflare blocked the runner</h3>
+            <p>The result says nothing about the site, so it doesn't pretend to. The skip message says to run it locally.</p>
+          </div>
+        </div>
+        <ul class="plain bullets">
+          <li><b>Both suites with --continue</b> on the manual run, so an API failure still produces a UI result and a report.</li>
+          <li><b>Allure as one HTML file.</b> The usual folder of JSON just sits on "Loading..." when downloaded from Actions. The upload step fails the job if no report was made.</li>
+          <li><b>Test tasks are never up to date.</b> Gradle skips tasks when nothing changed locally, but the other end is live, so last time's pass means nothing.</li>
+          <li><b>Old results get wiped</b> before every run, so a stale result can't sneak into a new report.</li>
+        </ul>
+      </section>
+
+      <section class="section-alt" id="carryover" aria-labelledby="carry-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 05 · WHAT CARRIES OVER</span>
+              <h2 class="display" id="carry-title">Same instincts, one layer down</h2>
+              <p class="muted">None of this is specific to a pet store. Every decision above has a direct twin in running infrastructure.</p>
+            </div>
+          </div>
+          <ul class="plain mapping">
+            <li class="mapping-head" aria-hidden="true"><span class="map-from label">In this test suite</span><span class="map-to label">In infrastructure</span></li>
+            <li>
+              <span class="map-from">Poll until the pet is readable, never a fixed sleep</span>
+              <span class="map-to"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg><span>Readiness probes and post-deploy health checks instead of <code>sleep 30 &amp;&amp; curl</code></span></span>
+            </li>
+            <li>
+              <span class="map-from">A 10s timeout on every HTTP call</span>
+              <span class="map-to"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg><span>Timeouts on jobs and probes, so a hang turns into a clear failure</span></span>
+            </li>
+            <li>
+              <span class="map-from">Skip on a Cloudflare challenge instead of failing</span>
+              <span class="map-to"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg><span>Alerts with pending windows and inhibition, so a page always means something</span></span>
+            </li>
+            <li>
+              <span class="map-from">Own ids, and every test cleans up after itself</span>
+              <span class="map-to"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg><span>Idempotent deploys and throwaway environments, like a fresh kind cluster per CI run</span></span>
+            </li>
+            <li>
+              <span class="map-from">Never trust a cached pass against a live system</span>
+              <span class="map-to"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg><span>Drift detection: check what's really running, not what state says should be</span></span>
+            </li>
+            <li>
+              <span class="map-from">Every quirk explained in the README</span>
+              <span class="map-to"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg><span>Runbooks that say why, not just which button to press</span></span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="wrap next-wrap section" aria-label="Next project">
+        <a class="next" href="platform.html">
+          <span><span class="label">Next project</span><strong>Cloud-native deployment platform</strong></span>
+          <svg width="28" height="28" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer">
+        <span>Tested and deployed by GitHub Actions to GitHub Pages</span>
+        <span>build <a data-build href="https://github.com/MPeets/devops-portfolio/actions">local</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
