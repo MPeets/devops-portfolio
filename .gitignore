@@ -1,0 +1,3 @@
+node_modules/
+.lighthouseci/
+site/build.json
