@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Air-gapped observability lab · Mihkel Peets</title>
+    <meta name="description" content="Case study: a Prometheus, Alertmanager and Grafana stack that installs and runs with no internet, with unit-tested alert rules and a checksummed offline bundle.">
+    <meta name="theme-color" content="#0e1113">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Air-gapped observability lab · Mihkel Peets">
+    <meta property="og:description" content="Monitoring for networks with no internet: pinned images, tested alert rules, an offline install rehearsed in CI.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/common.js" defer></script>
+    <script src="assets/js/lab.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="Main">
+        <a class="brand" href="index.html">MIHKEL PEETS<span>_</span></a>
+        <div class="nav-links">
+          <a href="index.html#projects">All projects</a>
+          <a href="https://github.com/MPeets">GitHub</a>
+          <a class="btn btn-primary" href="index.html#contact">Get in touch</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="wrap cs-head" aria-labelledby="title">
+        <a class="back" href="index.html#projects">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"></path></svg>
+          PROJECT 02
+        </a>
+        <h1 class="display" id="title">Air-gapped observability lab</h1>
+        <p class="lede">Industrial and OT networks often have no internet at all, so monitoring has to arrive in a box and run on its own. This is that box. Every image pinned, every config in git, every alert rule tested, and an install that never reaches for a registry.</p>
+        <dl class="meta">
+          <div><dt>Role</dt><dd>Solo, commit by commit</dd></div>
+          <div><dt>Stack</dt><dd>Prometheus, Alertmanager, Grafana, Compose</dd></div>
+          <div><dt>Alerts</dt><dd>10 rules, each with a runbook entry</dd></div>
+          <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/airgapped-observability-lab">MPeets/airgapped-observability-lab</a></dd></div>
+        </dl>
+      </section>
+
+      <section class="wrap section" id="inside" aria-labelledby="inside-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 01 · INSIDE THE GAP</span>
+            <h2 class="display" id="inside-title">Everything runs without a way out</h2>
+          </div>
+          <span class="hint">Click any component</span>
+        </div>
+
+        <div class="diagram-box" data-diagram>
+          <div class="diagram-scroll">
+            <div class="diagram" style="width: 1040px; height: 400px">
+              <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+                <defs>
+                  <marker id="ah" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path class="arrow-head" fill="#7d878c" d="M0 0 L4 2 L0 4 Z"></path></marker>
+                </defs>
+              </svg>
+              <div class="band band-dashed" style="left: 16px; top: 16px; width: 1008px; height: 368px"></div>
+
+              <svg class="arrow" width="36" height="8" viewBox="0 0 36 8" style="left: 216px; top: 96px" aria-hidden="true"><path d="M 0 4 L 36 4"></path></svg>
+              <svg class="arrow" width="36" height="8" viewBox="0 0 36 8" style="left: 216px; top: 320px" aria-hidden="true"><path d="M 0 4 L 36 4"></path></svg>
+              <svg class="arrow" width="8" height="224" viewBox="0 0 8 224" style="left: 248px; top: 100px" aria-hidden="true"><path d="M 4 0 L 4 224"></path></svg>
+              <svg class="arrow" width="71" height="8" viewBox="0 0 71 8" style="left: 216px; top: 208px" aria-hidden="true"><path d="M 0 4 L 67 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="95" height="8" viewBox="0 0 95 8" style="left: 472px; top: 144px" aria-hidden="true"><path d="M 0 4 L 91 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="95" height="8" viewBox="0 0 95 8" style="left: 472px; top: 272px" aria-hidden="true"><path d="M 0 4 L 91 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="95" height="8" viewBox="0 0 95 8" style="left: 752px; top: 144px" aria-hidden="true"><path d="M 0 4 L 91 4" marker-end="url(#ah)"></path></svg>
+
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 64px; width: 184px; height: 72px"
+                data-kind="Exporter" data-name="node_exporter"
+                data-what="Linux host metrics with no published port. Only Prometheus reaches it over the internal network, and like every container here it runs read-only and non-root."
+                data-file="compose.yaml"><span><b>node_exporter</b><small>Linux host metrics</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 176px; width: 184px; height: 72px"
+                data-kind="Exporter" data-name="windows_exporter"
+                data-what="Installed on the Windows host itself. Targets live in files that Prometheus watches, so adding a machine is a one-line change it picks up within 30 seconds, no restart."
+                data-file="prometheus/targets/&lt;job&gt;/*.yml"><span><b>windows_exporter</b><small>file-based discovery</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 288px; width: 184px; height: 72px"
+                data-kind="Probes" data-name="blackbox_exporter"
+                data-what="HTTP, ICMP, TCP and TLS probes for things that can't run an exporter, which covers most OT equipment. A tls-demo endpoint signed by the lab's own CA gives the certificate alerts something real to watch."
+                data-file="blackbox/"><span><b>blackbox_exporter</b><small>HTTP, ICMP, TCP, TLS</small></span></button>
+              <button class="node" type="button" aria-pressed="true" style="left: 288px; top: 112px; width: 184px; height: 200px"
+                data-kind="Core" data-name="Prometheus"
+                data-what="Scrapes every 15 seconds and evaluates 10 alert rules and 8 recording rules. Shared recording rules let the same host alerts cover Linux and Windows. The UI only listens on 127.0.0.1."
+                data-file="prometheus/prometheus.yml, prometheus/rules/"><span><b>Prometheus</b><small>scrapes every 15s</small><small>10 alert rules</small><small>8 recording rules</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 568px; top: 112px; width: 184px; height: 72px"
+                data-kind="Alerting" data-name="Alertmanager"
+                data-what="Routes critical alerts to oncall and warnings to team, groups related alerts and inhibits symptoms. A Watchdog alert is always firing, so silence means the pipeline broke, not that everything is fine."
+                data-file="alertmanager/alertmanager.yml"><span><b>Alertmanager</b><small>route, group, inhibit</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 568px; top: 240px; width: 184px; height: 72px"
+                data-kind="Dashboards" data-name="Grafana"
+                data-what="Datasource and dashboards are provisioned from files in git. Grafana makes no outbound calls, so it starts exactly the same with or without a network."
+                data-file="grafana/provisioning/"><span><b>Grafana</b><small>dashboards as code</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 848px; top: 112px; width: 160px; height: 72px"
+                data-kind="Notify" data-name="webhook-logger"
+                data-what="A stand-in receiver that logs every notification it gets. In a real site it would be whatever is reachable inside the gap: a mail relay, a chat bridge, a pager."
+                data-file="alertmanager/alertmanager.yml"><span><b>webhook-logger</b><small>stand-in receiver</small></span></button>
+
+              <span class="d-label" style="left: 32px; top: 28px">ISOLATED NETWORK · NO EGRESS</span>
+              <span class="d-note" style="left: 492px; top: 120px; width: 56px">alerts</span>
+              <span class="d-note" style="left: 488px; top: 248px; width: 64px">PromQL</span>
+              <span class="d-note" style="left: 772px; top: 120px; width: 56px">routed</span>
+            </div>
+          </div>
+          <div class="inspector" aria-live="polite">
+            <div class="inspector-title">
+              <span class="label" data-insp="kind">Core</span>
+              <span class="inspector-name" data-insp="name">Prometheus</span>
+            </div>
+            <div class="inspector-body">
+              <p data-insp="what">Scrapes every 15 seconds and evaluates 10 alert rules and 8 recording rules. Shared recording rules let the same host alerts cover Linux and Windows. The UI only listens on 127.0.0.1.</p>
+              <span class="inspector-file">config: <span data-insp="file">prometheus/prometheus.yml, prometheus/rules/</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="simulate" aria-labelledby="sim-title">
+        <div class="wrap section stackv" data-sim data-speed="1">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 02 · BREAK SOMETHING</span>
+              <h2 class="display" id="sim-title">Pick a failure, watch the alert fire</h2>
+              <p class="muted">These are the lab's real alert rules. Prometheus waits out the for: window, then Alertmanager routes the alert by severity. The metric data is simulated, the lifecycle is not.</p>
+            </div>
+          </div>
+
+          <div class="scenarios" role="group" aria-label="Failure scenarios">
+            <button class="scenario" type="button" aria-pressed="true" data-scen="target">Stop node_exporter<small>TargetDown</small></button>
+            <button class="scenario" type="button" aria-pressed="false" data-scen="disk">Fill the disk<small>HostDiskAlmostFull</small></button>
+            <button class="scenario" type="button" aria-pressed="false" data-scen="cert">Let a certificate age<small>TLSCertExpiringSoon</small></button>
+            <button class="scenario" type="button" aria-pressed="false" data-scen="probe">Endpoint stops answering<small>ProbeFailed</small></button>
+          </div>
+
+          <div class="sim">
+            <div class="panel sim-main">
+              <div class="sim-head">
+                <span data-sim-alert>TargetDown</span>
+                <span class="pill pill-ok" data-sim-state>INACTIVE</span>
+              </div>
+<pre class="rule" data-sim-rule>alert: TargetDown
+expr: up{job!~"blackbox-(http|icmp|tls)"} == 0
+for: 2m
+labels:
+  severity: critical</pre>
+              <div class="readout">
+                <span data-sim-metric>up{job="node"}</span>
+                <span>now: <b data-sim-now>1</b></span>
+                <span class="thr-key" data-sim-thr>fires at 0</span>
+              </div>
+              <svg class="chart" viewBox="0 0 640 220" role="img" aria-label="Simulated metric over time" data-sim-chart>
+                <line x1="12" x2="628" y1="63" y2="63" stroke="#20272b"></line>
+                <line x1="12" x2="628" y1="110" y2="110" stroke="#20272b"></line>
+                <line x1="12" x2="628" y1="157" y2="157" stroke="#20272b"></line>
+                <line data-sim-thrline x1="12" x2="628" y1="110" y2="110" stroke="#ff6b5b" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.85"></line>
+                <path data-sim-path d="M 12 42.9 L 296.8 42.9" fill="none" stroke="#7fb8d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+                <circle data-sim-dot cx="296.8" cy="42.9" r="5" fill="#7fb8d6" stroke="#0e1113" stroke-width="2"></circle>
+              </svg>
+              <div class="axis"><span data-sim-start>-12m</span><span>simulated time</span><span>now</span></div>
+            </div>
+
+            <div class="panel sim-side">
+              <span class="label">Alert lifecycle</span>
+              <ol class="plain lifecycle">
+                <li data-lc="0" data-state="current" data-tone="ok"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">OK</span><span class="lc-desc">Expression is false. Nothing to do.</span></span></li>
+                <li data-lc="1" data-state="next" data-tone="warn"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">PENDING</span><span class="lc-desc" data-lc-desc>Condition is true. Waiting out for: 2m so a blip never pages anyone.</span></span></li>
+                <li data-lc="2" data-state="next" data-tone="bad"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">FIRING</span><span class="lc-desc" data-lc-desc>Still true after 2m. Prometheus sends it to Alertmanager.</span></span></li>
+                <li data-lc="3" data-state="next" data-tone="bad"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">NOTIFIED</span><span class="lc-desc" data-lc-desc>Routed to oncall and delivered to webhook-logger.</span></span></li>
+              </ol>
+              <div class="actions">
+                <button class="btn btn-danger" type="button" data-sim-trigger>Trigger the fault</button>
+                <button class="btn btn-ghost" type="button" data-sim-reset>Reset</button>
+              </div>
+              <p class="note" data-sim-note>Probe jobs are excluded on purpose. ProbeFailed covers those, so one failure never raises two alerts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="install" aria-labelledby="install-title" data-stepper>
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 03 · CROSSING THE GAP</span>
+            <h2 class="display" id="install-title">The offline install, step by step</h2>
+            <p class="muted">You can't pull images on the other side, so the stack travels as one checksummed bundle. CI rehearses it on every push to main: bundle, install with registries blocked, smoke test.</p>
+          </div>
+        </div>
+
+        <div class="zones">
+          <div class="zone">
+            <span class="label">Connected machine</span>
+            <button class="step-btn" type="button" aria-pressed="true" data-step="0"><span class="n">1</span>Check everything</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="1"><span class="n">2</span>Build the bundle</button>
+          </div>
+          <div class="zone zone-gap">
+            <span class="label">The gap</span>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="2"><span class="n">3</span>Carry it across</button>
+          </div>
+          <div class="zone">
+            <span class="label">Isolated network</span>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="3"><span class="n">4</span>Verify and install</button>
+            <button class="step-btn" type="button" aria-pressed="false" data-step="4"><span class="n">5</span>Smoke test</button>
+          </div>
+        </div>
+
+        <div class="step-panel" aria-live="polite">
+          <div class="step-detail" data-step-detail="0">
+            <span class="eyebrow">STEP 1 OF 5</span>
+            <h3>Check everything</h3>
+            <p>Config, rule unit tests, alert routing, blackbox config and runbook links. Nothing broken leaves the connected side.</p>
+            <pre>./scripts/check.sh</pre>
+          </div>
+          <div class="step-detail" data-step-detail="1" hidden>
+            <span class="eyebrow">STEP 2 OF 5</span>
+            <h3>Build the bundle</h3>
+            <p>Pinned images and configs packed into one bundle, with checksums for everything in it.</p>
+            <pre>./scripts/bundle.sh</pre>
+          </div>
+          <div class="step-detail" data-step-detail="2" hidden>
+            <span class="eyebrow">STEP 3 OF 5</span>
+            <h3>Carry it across</h3>
+            <p>Approved media or a controlled transfer. The bundle is the only thing that crosses, and nothing gets downloaded on the other side.</p>
+            <pre># no network commands on purpose</pre>
+          </div>
+          <div class="step-detail" data-step-detail="3" hidden>
+            <span class="eyebrow">STEP 4 OF 5</span>
+            <h3>Verify and install</h3>
+            <p>The installer checks files and images against the checksums, then starts the stack without a single registry pull.</p>
+            <pre>./install.sh</pre>
+          </div>
+          <div class="step-detail" data-step-detail="4" hidden>
+            <span class="eyebrow">STEP 5 OF 5</span>
+            <h3>Smoke test</h3>
+            <p>An end-to-end test of the running stack. The same script runs in CI on every push.</p>
+            <pre>./scripts/smoke-test.sh</pre>
+          </div>
+          <div class="step-nav">
+            <button class="btn btn-ghost" type="button" data-step-prev disabled>Back</button>
+            <button class="btn btn-primary" type="button" data-step-next>Next step</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="build" aria-labelledby="build-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 04 · BUILT STEP BY STEP</span>
+              <h2 class="display" id="build-title">Fourteen steps, each with a reason</h2>
+            </div>
+            <p>Every step added one thing and wrote down why. Open one to read the decision. The <a href="https://github.com/MPeets/airgapped-observability-lab/commits/main">full commit history</a> is on GitHub.</p>
+          </div>
+          <div class="build-log">
+            <details><summary><span class="n">01</span><span class="t">Scaffold with Prometheus</span><span class="s">done</span></summary><p>Versions pinned, UI bound to localhost. In an air-gapped network you only run what you bundled and checked, and Prometheus has no auth by default.</p></details>
+            <details><summary><span class="n">02</span><span class="t">node_exporter for host metrics</span><span class="s">done</span></summary><p>No published port. Only Prometheus can reach it over the Compose network, and host paths are mounted read-only.</p></details>
+            <details><summary><span class="n">03</span><span class="t">Grafana with a provisioned datasource</span><span class="s">done</span></summary><p>The datasource comes from a file, so a fresh install needs zero clicking and comes up the same every time.</p></details>
+            <details><summary><span class="n">04</span><span class="t">Host dashboard as code</span><span class="s">done</span></summary><p>Dashboard JSON lives in git and loads at start. Reviewable, diffable, reproducible.</p></details>
+            <details><summary><span class="n">05</span><span class="t">Alert and recording rules</span><span class="s">done</span></summary><p>Recording rules precompute the expensive queries and let one set of host alerts cover Linux and Windows.</p></details>
+            <details><summary><span class="n">06</span><span class="t">promtool unit tests for the rules</span><span class="s">done</span></summary><p>Each alert gets synthetic series and an expected result. An alert that never fires is worse than no alert at all.</p></details>
+            <details><summary><span class="n">07</span><span class="t">Alertmanager routing and inhibition</span><span class="s">done</span></summary><p>Critical to oncall, warnings to team, symptoms muted while the cause fires. Plus a Watchdog that proves the whole path is alive.</p></details>
+            <details><summary><span class="n">08</span><span class="t">blackbox_exporter probes</span><span class="s">done</span></summary><p>Checks from the outside for devices that can't run an exporter: does it answer, is it reachable, when does its certificate run out.</p></details>
+            <details open><summary><span class="n">09</span><span class="t">Internal CA and certificate alerts</span><span class="s">done</span></summary><p>A lab CA and a tls-demo endpoint, so expiry alerts watch a real certificate. Nobody auto-renews anything inside an air gap.</p></details>
+            <details><summary><span class="n">10</span><span class="t">File-based discovery and Windows hosts</span><span class="s">done</span></summary><p>Targets come from files instead of a cloud API. Adding a Windows host is a one-line change, picked up within 30 seconds.</p></details>
+            <details><summary><span class="n">11</span><span class="t">Offline bundle with checksums</span><span class="s">done</span></summary><p>Images and configs in one verifiable bundle. The installer refuses to start anything it can't verify.</p></details>
+            <details><summary><span class="n">12</span><span class="t">Hardening</span><span class="s">done</span></summary><p>Read-only containers, NET_RAW as the only capability, non-root, localhost-only UIs, resource limits, bounded logs and storage, no outbound calls from Grafana.</p></details>
+            <details><summary><span class="n">13</span><span class="t">CI with an offline install rehearsal</span><span class="s">done</span></summary><p>Every push runs check.sh, shellcheck and the smoke test. Main also builds the bundle and installs it with registries blocked.</p></details>
+            <details><summary><span class="n">14</span><span class="t">Docs, runbook and OT notes</span><span class="s">done</span></summary><p>Architecture decisions, a runbook every alert links to, and notes on adapting the stack for OT sites.</p></details>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section" id="ot" aria-labelledby="ot-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 05 · TAKING IT TO OT</span>
+            <h2 class="display" id="ot-title">What changes on a real industrial site</h2>
+          </div>
+          <p>The lab is one network. The <a href="https://github.com/MPeets/airgapped-observability-lab/blob/main/docs/ot-adaptation.md">OT adaptation notes</a> cover what it takes to run this next to real equipment.</p>
+        </div>
+        <div class="grid-4">
+          <div class="panel panel-stack">
+            <span class="eyebrow">01</span>
+            <h3>Purdue model zones</h3>
+            <p>Which level each piece lives on, and which flows are allowed to cross between levels.</p>
+          </div>
+          <div class="panel panel-stack">
+            <span class="eyebrow">02</span>
+            <h3>Probing field devices safely</h3>
+            <p>Gentle probes and sensible intervals. Some field equipment doesn't take kindly to being poked hard.</p>
+          </div>
+          <div class="panel panel-stack">
+            <span class="eyebrow">03</span>
+            <h3>Maintenance windows</h3>
+            <p>Planned work shouldn't page anyone. Silences cover the window, and alerts come back when it ends.</p>
+          </div>
+          <div class="panel panel-stack">
+            <span class="eyebrow">04</span>
+            <h3>Hardened by default</h3>
+            <p>Read-only, non-root, one capability, localhost-only UIs. The same defaults hold on a site as in the lab.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap next-wrap" aria-label="Previous project">
+        <a class="next" href="platform.html">
+          <span><span class="label">Previous project</span><strong>Cloud-native deployment platform</strong></span>
+          <svg width="28" height="28" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer">
+        <span>Tested and deployed by GitHub Actions to GitHub Pages</span>
+        <span>build <a data-build href="https://github.com/MPeets/devops-portfolio/actions">local</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
