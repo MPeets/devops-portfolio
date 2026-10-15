@@ -1,0 +1,16 @@
+# Link checker config, picked up automatically by lychee.
+
+# LinkedIn blocks bots, the font hosts are preconnect origins rather than pages,
+# and TODO links are placeholders that the CI warning already flags.
+exclude = [
+  "linkedin\\.com",
+  "fonts\\.googleapis\\.com",
+  "fonts\\.gstatic\\.com",
+  "TODO",
+]
+
+# GitHub rate-limits link checkers; a 429 means the page exists.
+accept = ["200..=299", "429"]
+
+max_retries = 3
+timeout = 20
