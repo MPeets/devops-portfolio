@@ -21,6 +21,31 @@
     });
   });
 
+  // Steppers: buttons [data-step], panels [data-step-detail], Back/Next.
+  document.querySelectorAll("[data-stepper]").forEach((root) => {
+    const buttons = Array.from(root.querySelectorAll("[data-step]"));
+    const details = Array.from(root.querySelectorAll("[data-step-detail]"));
+    const prev = root.querySelector("[data-step-prev]");
+    const next = root.querySelector("[data-step-next]");
+    const last = buttons.length - 1;
+    let current = 0;
+
+    function go(i) {
+      current = Math.max(0, Math.min(last, i));
+      buttons.forEach((b, k) => b.setAttribute("aria-pressed", String(k === current)));
+      details.forEach((d, k) => {
+        d.hidden = k !== current;
+      });
+      prev.disabled = current === 0;
+      next.disabled = current === last;
+    }
+
+    buttons.forEach((b, k) => b.addEventListener("click", () => go(k)));
+    prev.addEventListener("click", () => go(current - 1));
+    next.addEventListener("click", () => go(current + 1));
+    go(0);
+  });
+
   const canFetch = typeof window.fetch === "function";
 
   // Small session cache so a visitor clicking around doesn't burn through
@@ -52,14 +77,14 @@
     return res.json();
   }
 
-  async function repoStatus(repo) {
-    const key = "repo-status:" + repo;
+  async function repoStatus(repo, workflow) {
+    const key = "repo-status:" + repo + ":" + workflow;
     const cached = cacheGet(key);
     if (cached) return cached;
     const base = "https://api.github.com/repos/" + repo;
     const [meta, runs] = await Promise.all([
       getJSON(base),
-      getJSON(base + "/actions/workflows/ci.yml/runs?branch=main&status=completed&per_page=1"),
+      getJSON(base + "/actions/workflows/" + workflow + "/runs?branch=main&status=completed&per_page=1"),
     ]);
     const run = runs.workflow_runs && runs.workflow_runs[0];
     const status = {
@@ -100,7 +125,7 @@
 
   if (canFetch) {
     document.querySelectorAll("[data-repo]").forEach((el) => {
-      repoStatus(el.getAttribute("data-repo"))
+      repoStatus(el.getAttribute("data-repo"), el.getAttribute("data-workflow") || "ci.yml")
         .then((status) => showStatus(el, status))
         .catch(() => {
           const pill = el.querySelector("[data-ci]");

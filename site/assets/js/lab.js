@@ -1,5 +1,5 @@
-// Lab case study: alert simulator built on the repo's real rules, and the
-// offline install stepper.
+// Lab case study: alert simulator built on the repo's real rules.
+// The offline install stepper is the shared one in common.js.
 (function () {
   "use strict";
 
@@ -87,9 +87,6 @@
 
   const sim = document.querySelector("[data-sim]");
   if (sim) initSimulator(sim);
-
-  const stepper = document.querySelector("[data-stepper]");
-  if (stepper) initStepper(stepper);
 
   function initSimulator(root) {
     const $ = (sel) => root.querySelector(sel);
@@ -187,29 +184,5 @@
     });
 
     render();
-  }
-
-  function initStepper(root) {
-    const buttons = Array.from(root.querySelectorAll("[data-step]"));
-    const details = Array.from(root.querySelectorAll("[data-step-detail]"));
-    const prev = root.querySelector("[data-step-prev]");
-    const next = root.querySelector("[data-step-next]");
-    const last = buttons.length - 1;
-    let current = 0;
-
-    function go(i) {
-      current = Math.max(0, Math.min(last, i));
-      buttons.forEach((b, k) => b.setAttribute("aria-pressed", String(k === current)));
-      details.forEach((d, k) => {
-        d.hidden = k !== current;
-      });
-      prev.disabled = current === 0;
-      next.disabled = current === last;
-    }
-
-    buttons.forEach((b, k) => b.addEventListener("click", () => go(k)));
-    prev.addEventListener("click", () => go(current - 1));
-    next.addEventListener("click", () => go(current + 1));
-    go(0);
   }
 })();
