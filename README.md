@@ -4,10 +4,13 @@
 
 My DevOps / SRE portfolio: **https://mpeets.github.io/devops-portfolio/**
 
-It's a static site with two case studies, each with something to click:
+It's a static site with three case studies, each with something to click:
 
 - **[Cloud-native deployment platform](https://github.com/MPeets/cloud-native-deployment-platform)**: an architecture diagram you can inspect, a pipeline replay with a manual approval gate and an injectable tfsec finding, and a drift report.
 - **[Air-gapped observability lab](https://github.com/MPeets/airgapped-observability-lab)**: an alert simulator built on the lab's real Prometheus rules, and a step-through of the offline install.
+- **[Test automation take-home](https://github.com/MPeets/luminor-qa-task)**: what the live systems did that the brief didn't say, a sleep-vs-poll comparison using the suite's real poll settings, and the UI journey locator by locator.
+
+The home page also has a "Why QA" section that ties the three together: the testing habits that carry over into running infrastructure, with links to where each one shows up.
 
 The site is tested and deployed the same way as the projects it shows off.
 
@@ -42,14 +45,15 @@ site/                 everything that gets deployed
   index.html          home
   platform.html       cloud-native platform case study
   lab.html            air-gapped lab case study
+  qa-task.html        test automation take-home case study
   404.html            shown by Pages for unknown paths
   assets/css/         one stylesheet
-  assets/js/          common.js (diagrams, live CI status, build stamp) + one script per page
+  assets/js/          common.js (diagrams, steppers, live CI status, build stamp) + one script per page
 tests/                jsdom tests for the pages
 .github/workflows/    ci.yml (test, deploy, audit) and links.yml (weekly external links)
 ```
 
-The project cards on the home page fetch each repo's latest `ci.yml` run and last push from the public GitHub API, cached per browser session so visitors stay well under the unauthenticated rate limit.
+The project cards on the home page fetch each repo's latest CI run (`ci.yml`, or whatever `data-workflow` names) and last push from the public GitHub API, cached per browser session so visitors stay well under the unauthenticated rate limit.
 
 ## Run it locally
 
