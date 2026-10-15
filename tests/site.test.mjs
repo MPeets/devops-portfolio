@@ -1,0 +1,230 @@
+// Loads each page in jsdom, runs its real scripts and drives the interactive
+// parts the way a visitor would. No browser, no network.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import jsdom from "jsdom";
+
+const { JSDOM, VirtualConsole, requestInterceptor } = jsdom;
+const SITE = fileURLToPath(new URL("../site/", import.meta.url));
+const PAGES = ["index.html", "platform.html", "lab.html", "404.html"];
+
+// Load local scripts and styles, answer anything on the network (fonts) with
+// an empty response so the tests never leave the machine.
+const localOnly = requestInterceptor((request) => {
+  if (!request.url.startsWith("file:")) return new Response("", { headers: { "Content-Type": "text/css" } });
+  return undefined;
+});
+
+async function open(page) {
+  const errors = [];
+  const virtualConsole = new VirtualConsole();
+  virtualConsole.on("jsdomError", (err) => {
+    // Only real script errors count. jsdom's CSS parser not knowing a modern
+    // property, or a missing browser API stub, is not a bug in the page.
+    if (err.type === "unhandled-exception") errors.push(err);
+  });
+  const dom = await JSDOM.fromFile(path.join(SITE, page), {
+    runScripts: "dangerously",
+    resources: { interceptors: [localOnly] },
+    pretendToBeVisual: true,
+    virtualConsole,
+    beforeParse(window) {
+      window.fetch = undefined;
+    },
+  });
+  const { document } = dom.window;
+  if (document.readyState !== "complete") {
+    await new Promise((resolve) => dom.window.addEventListener("load", resolve));
+  }
+  // close() also fails the test if any script threw along the way, including
+  // inside timers and click handlers.
+  const close = () => {
+    dom.window.close();
+    assert.deepEqual(errors.map((e) => e.message), [], "script errors");
+  };
+  return { window: dom.window, document, errors, close };
+}
+
+async function waitFor(check, ms = 3000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.fail("condition not met within " + ms + "ms");
+}
+
+const click = (el) => el.dispatchEvent(new el.ownerDocument.defaultView.MouseEvent("click", { bubbles: true }));
+
+for (const page of PAGES) {
+  test(`${page}: loads cleanly with the basics in place`, async () => {
+    const { document, errors, close } = await open(page);
+    assert.deepEqual(errors.map((e) => e.message), [], "script errors");
+    assert.equal(document.documentElement.lang, "en");
+    assert.equal(document.querySelectorAll("h1").length, 1, "exactly one h1");
+    assert.ok(document.querySelector('meta[name="description"]')?.content, "meta description");
+
+    const ids = Array.from(document.querySelectorAll("[id]"), (el) => el.id);
+    assert.equal(new Set(ids).size, ids.length, "ids are unique");
+
+    for (const btn of document.querySelectorAll("button")) {
+      assert.ok(btn.textContent.trim() || btn.getAttribute("aria-label"), "every button has a name");
+    }
+    close();
+  });
+}
+
+test("internal links point at pages and anchors that exist", async () => {
+  for (const page of PAGES.filter((p) => p !== "404.html")) {
+    const { document, close } = await open(page);
+    for (const a of document.querySelectorAll("a[href]")) {
+      const href = a.getAttribute("href");
+      if (/^(https?:|mailto:)/.test(href)) continue;
+      if (href.includes("TODO")) continue;
+      const [file, hash] = href.split("#");
+      const target = file || page;
+      assert.ok(fs.existsSync(path.join(SITE, target)), `${page}: ${href} points at a missing file`);
+      if (hash) {
+        const html = fs.readFileSync(path.join(SITE, target), "utf8");
+        assert.ok(html.includes(`id="${hash}"`), `${page}: ${href} points at a missing anchor`);
+      }
+    }
+    close();
+  }
+});
+
+test("home: each terminal command shows only its own output", async () => {
+  const { document, close } = await open("index.html");
+  const term = document.querySelector("[data-terminal]");
+  term.setAttribute("data-delay", "0");
+  for (const btn of term.querySelectorAll("[data-cmd]")) {
+    click(btn);
+    const id = btn.getAttribute("data-cmd");
+    const visible = Array.from(term.querySelectorAll("[data-out]")).filter((o) => !o.hidden);
+    assert.equal(visible.length, 1);
+    assert.equal(visible[0].getAttribute("data-out"), id);
+    assert.equal(btn.getAttribute("aria-pressed"), "true");
+    assert.equal(term.querySelector("[data-term-line]").textContent, btn.textContent);
+  }
+  close();
+});
+
+for (const [page, nodeName] of [
+  ["platform.html", "RDS PostgreSQL"],
+  ["lab.html", "Alertmanager"],
+]) {
+  test(`${page}: clicking a diagram component updates the inspector`, async () => {
+    const { document, close } = await open(page);
+    const node = Array.from(document.querySelectorAll(".node")).find(
+      (n) => n.getAttribute("data-name") === nodeName
+    );
+    click(node);
+    assert.equal(document.querySelector('[data-insp="name"]').textContent, nodeName);
+    assert.equal(document.querySelector('[data-insp="what"]').textContent, node.getAttribute("data-what"));
+    assert.equal(document.querySelectorAll('.node[aria-pressed="true"]').length, 1);
+    close();
+  });
+}
+
+test("platform: a clean run stops at the approval gate, then deploys once approved", async () => {
+  const { document, close } = await open("platform.html");
+  const root = document.querySelector("[data-pipeline]");
+  root.setAttribute("data-tick", "1");
+  const stages = () => Array.from(root.querySelectorAll(".stage"), (s) => s.getAttribute("data-status"));
+  const approve = root.querySelector("[data-approve]");
+
+  click(root.querySelector("[data-run]"));
+  await waitFor(() => stages().includes("waiting"));
+  const gate = stages().indexOf("waiting");
+  assert.ok(root.querySelectorAll(".stage")[gate].hasAttribute("data-gate"), "waits at the gated stage");
+  assert.ok(stages().slice(0, gate).every((s) => s === "passed"));
+  assert.equal(approve.hidden, false);
+
+  click(approve);
+  await waitFor(() => stages().every((s) => s === "passed"));
+  assert.equal(root.querySelector("[data-banner]").getAttribute("data-tone"), "ok");
+  assert.equal(approve.hidden, true);
+  close();
+});
+
+test("platform: a security finding stops the run before plan and apply", async () => {
+  const { document, close } = await open("platform.html");
+  const root = document.querySelector("[data-pipeline]");
+  root.setAttribute("data-tick", "1");
+  root.querySelector("[data-fail-toggle]").checked = true;
+  const stages = () => Array.from(root.querySelectorAll(".stage"), (s) => s.getAttribute("data-status"));
+
+  click(root.querySelector("[data-run]"));
+  await waitFor(() => stages().includes("failed"));
+  const failed = stages().indexOf("failed");
+  assert.ok(root.querySelectorAll(".stage")[failed].hasAttribute("data-fail"), "fails at the scan");
+  assert.ok(stages().slice(failed + 1).every((s) => s === "skipped"));
+  assert.match(root.querySelector("[data-log-text]").textContent, /potential problem/);
+  assert.equal(root.querySelector("[data-banner]").getAttribute("data-tone"), "bad");
+  close();
+});
+
+test("platform: the drift toggle swaps the report", async () => {
+  const { document, close } = await open("platform.html");
+  const sync = document.querySelector('[data-drift-state="sync"]');
+  const drift = document.querySelector('[data-drift-state="drift"]');
+  const toggle = document.querySelector("[data-drift-toggle]");
+  assert.equal(drift.hidden, true);
+  click(toggle);
+  assert.equal(sync.hidden, true);
+  assert.equal(drift.hidden, false);
+  assert.equal(document.querySelector("[data-drift-pill]").textContent, "DRIFT");
+  click(toggle);
+  assert.equal(drift.hidden, true);
+  close();
+});
+
+test("lab: triggering a fault walks the alert to notified", async () => {
+  const { document, close } = await open("lab.html");
+  const root = document.querySelector("[data-sim]");
+  root.setAttribute("data-speed", "0");
+  const state = () => root.querySelector("[data-sim-state]").textContent;
+  const current = () => root.querySelector('[data-lc][data-state="current"]').getAttribute("data-lc");
+
+  assert.equal(state(), "INACTIVE");
+  click(root.querySelector("[data-sim-trigger]"));
+  await waitFor(() => current() === "3");
+  assert.equal(state(), "FIRING · NOTIFIED");
+  assert.equal(root.querySelector("[data-sim-trigger]").disabled, true);
+
+  click(root.querySelector("[data-sim-reset]"));
+  assert.equal(state(), "INACTIVE");
+  assert.equal(current(), "0");
+  close();
+});
+
+test("lab: switching scenario shows that rule and resets the lifecycle", async () => {
+  const { document, close } = await open("lab.html");
+  const root = document.querySelector("[data-sim]");
+  click(root.querySelector('[data-scen="cert"]'));
+  assert.equal(root.querySelector("[data-sim-alert]").textContent, "TLSCertExpiringSoon");
+  assert.match(root.querySelector("[data-sim-rule]").textContent, /86400 < 30/);
+  assert.match(root.querySelector('[data-lc="3"] .lc-desc').textContent, /team/);
+  assert.match(root.querySelector("[data-sim-path]").getAttribute("d"), /^M [\d.]+ [\d.]+( L [\d.]+ [\d.]+)+$/);
+  close();
+});
+
+test("lab: the install stepper moves forward and back within bounds", async () => {
+  const { document, close } = await open("lab.html");
+  const root = document.querySelector("[data-stepper]");
+  const prev = root.querySelector("[data-step-prev]");
+  const next = root.querySelector("[data-step-next]");
+  const shown = () => Array.from(root.querySelectorAll("[data-step-detail]")).filter((d) => !d.hidden);
+
+  assert.equal(prev.disabled, true);
+  for (let i = 0; i < 10; i++) click(next);
+  assert.equal(next.disabled, true);
+  assert.equal(shown().length, 1);
+  assert.equal(shown()[0].getAttribute("data-step-detail"), "4");
+  click(prev);
+  assert.equal(shown()[0].getAttribute("data-step-detail"), "3");
+  close();
+});
