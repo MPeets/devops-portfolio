@@ -112,6 +112,9 @@ test("home: each terminal command shows only its own output", async () => {
       term.querySelector("[data-term-line]").textContent,
       btn.getAttribute("data-line") || btn.textContent
     );
+    const source = term.querySelector("[data-term-source]").textContent;
+    assert.match(source, btn.getAttribute("data-source") === "captured" ? /CAPTURED/ : /REPRESENTATIVE/);
+    assert.ok(btn.querySelector(".cmd-repo").textContent.trim(), "every sample names its repo");
   }
   close();
 });
@@ -133,6 +136,41 @@ for (const page of CASE_STUDIES) {
     close();
   });
 }
+
+for (const [scenario, alert, muted] of [
+  ["site-silent", "SiteSilent", "DeviceSilent"],
+  ["grid-trip", "PhaseVoltageCritical", "TurbineFault"],
+]) {
+  test(`ot: the ${scenario} replay ends in one page and one all-clear`, async () => {
+    const { document, close } = await open("ot.html");
+    const root = document.querySelector("[data-replay]");
+    click(root.querySelector(`[data-replay-scenario="${scenario}"]`));
+    const step = root.querySelector("[data-replay-step]");
+    for (let i = 0; i < 40 && !step.disabled; i++) click(step);
+    assert.equal(step.disabled, true, "steps run out at the end");
+
+    const log = root.querySelector("[data-replay-log]").textContent;
+    assert.equal((log.match(new RegExp(`FIRING +${alert}`, "g")) || []).length, 1, "paged once");
+    assert.equal((log.match(new RegExp(`RESOLVED ${alert}`, "g")) || []).length, 1, "one all-clear");
+    assert.ok(!log.includes(muted), `${muted} never reaches the receiver`);
+    assert.match(root.querySelector('[data-stage="alertmanager"]').textContent + root.querySelector('[data-stage="receiver"]').textContent, /one all-clear|All-clear sent/i);
+    assert.match(root.querySelector("[data-replay-clock]").textContent, /lab time (\d+):(\d\d) of \1:\2/);
+    close();
+  });
+}
+
+test("ot: playing the replay runs on its own to the end", async () => {
+  const { document, close } = await open("ot.html");
+  const root = document.querySelector("[data-replay]");
+  root.setAttribute("data-speed", "0.1");
+  const play = root.querySelector("[data-replay-play]");
+  click(play);
+  assert.equal(play.textContent, "Pause");
+  await waitFor(() => root.querySelector("[data-replay-step]").disabled, 5000);
+  assert.equal(play.textContent, "Replay");
+  assert.match(root.querySelector("[data-replay-log]").textContent, /RESOLVED SiteSilent/);
+  close();
+});
 
 test("ot: every boundary tab shows one panel, with allowed and denied paths", async () => {
   const { document, close } = await open("ot.html");
