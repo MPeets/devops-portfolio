@@ -151,7 +151,7 @@
           <div class="grid-3">
             <div class="panel panel-stack">
               <h3>OIDC, not stored keys</h3>
-              <p>GitHub Actions assumes an IAM role for each run, so there's nothing in the repo or its settings to leak and reuse. A separate least-privilege role covers the incident log workflow.</p>
+              <p>GitHub Actions assumes an IAM role for each run, so there's nothing in the repo or its settings to leak and reuse. A separate least-privilege role covers the incident log workflow. See <a href="https://github.com/MPeets/cloud-native-deployment-platform/blob/main/.github/workflows/terraform-apply.yml">terraform-apply.yml</a> and the <a href="https://github.com/MPeets/cloud-native-deployment-platform/blob/main/infra/aws-oidc-role-trust-policy.json">trust policy</a>.</p>
             </div>
             <div class="panel panel-stack">
               <h3>Plan, apply and destroy are separate</h3>
