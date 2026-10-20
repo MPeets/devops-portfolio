@@ -10,6 +10,7 @@
   const cwd = term.querySelector("[data-term-cwd]");
   const line = term.querySelector("[data-term-line]");
   const running = term.querySelector("[data-term-running]");
+  const source = term.querySelector("[data-term-source]");
   let timer = null;
 
   function delay() {
@@ -24,6 +25,11 @@
       const id = btn.getAttribute("data-cmd");
       buttons.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
       cwd.textContent = btn.getAttribute("data-cwd");
+      if (source) {
+        const captured = btn.getAttribute("data-source") === "captured";
+        source.className = "pill " + (captured ? "pill-ok" : "pill-muted");
+        source.textContent = captured ? "CAPTURED 20 OCT 2026" : "REPRESENTATIVE OUTPUT";
+      }
       line.textContent = btn.getAttribute("data-line") || btn.textContent;
       outputs.forEach((out) => {
         out.hidden = true;

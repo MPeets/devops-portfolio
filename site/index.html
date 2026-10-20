@@ -57,18 +57,18 @@
 
           <div class="terminal" data-terminal>
             <div class="terminal-bar">
-              <span>PICK A COMMAND</span>
-              <span>output from the repos</span>
+              <span>FIVE SAMPLES FROM FOUR REPOS</span>
+              <span>pick one</span>
             </div>
-            <div class="terminal-cmds" role="group" aria-label="Commands">
-              <button class="cmd" type="button" aria-pressed="true" data-cmd="gateway" data-cwd="~/ot-energy-monitoring (from the DMZ)" data-line="python -m fleet.cli --unit 12 write modbus-gateway power_limit 0">write into OT</button>
-              <button class="cmd" type="button" aria-pressed="false" data-cmd="alerts" data-cwd="~/ot-energy-monitoring" data-line="python tools/webhook-logger/server.py">webhook-logger</button>
-              <button class="cmd" type="button" aria-pressed="false" data-cmd="check" data-cwd="~/airgapped-observability-lab">./scripts/check.sh</button>
-              <button class="cmd" type="button" aria-pressed="false" data-cmd="pods" data-cwd="~/cloud-native-deployment-platform (kind, in CI)">kubectl get pods</button>
-              <button class="cmd" type="button" aria-pressed="false" data-cmd="gradle" data-cwd="~/luminor-qa-task">./gradlew apiTest</button>
+            <div class="terminal-cmds" role="group" aria-label="Samples">
+              <button class="cmd" type="button" aria-pressed="true" data-cmd="gateway" data-source="captured" data-cwd="~/ot-energy-monitoring, from the DMZ" data-line="python -m fleet.cli --unit 12 write modbus-gateway power_limit 0"><span class="cmd-repo">OT</span>blocked OT write</button>
+              <button class="cmd" type="button" aria-pressed="false" data-cmd="alerts" data-source="captured" data-cwd="~/ot-energy-monitoring" data-line="python tools/webhook-logger/server.py"><span class="cmd-repo">OT</span>alert notifications</button>
+              <button class="cmd" type="button" aria-pressed="false" data-cmd="check" data-source="representative" data-cwd="~/airgapped-observability-lab" data-line="./scripts/check.sh"><span class="cmd-repo">Lab</span>./scripts/check.sh</button>
+              <button class="cmd" type="button" aria-pressed="false" data-cmd="pods" data-source="representative" data-cwd="~/cloud-native-deployment-platform, kind cluster in CI" data-line="kubectl get pods"><span class="cmd-repo">Platform</span>kubectl get pods</button>
+              <button class="cmd" type="button" aria-pressed="false" data-cmd="gradle" data-source="representative" data-cwd="~/luminor-qa-task" data-line="./gradlew apiTest"><span class="cmd-repo">Take-home</span>./gradlew apiTest</button>
             </div>
             <div class="terminal-body" aria-live="polite">
-              <div class="faint" data-term-cwd>~/ot-energy-monitoring (from the DMZ)</div>
+              <div class="term-source"><span class="pill pill-ok" data-term-source>CAPTURED 20 OCT 2026</span><span class="faint" data-term-cwd>~/ot-energy-monitoring, from the DMZ</span></div>
               <div><span class="prompt">$ </span><span data-term-line>python -m fleet.cli --unit 12 write modbus-gateway power_limit 0</span></div>
               <div class="faint" data-term-running hidden>running<span class="caret">_</span></div>
 <pre data-out="gateway">modbus-gateway: turbine, register map v2
@@ -152,13 +152,15 @@ BUILD SUCCESSFUL</pre>
                   <a class="text-link" href="https://github.com/MPeets/ot-energy-monitoring">View the repo</a>
                 </div>
               </div>
-              <div class="inset">
-                <span class="label">Captured: one cause, one page</span>
-<pre class="mini-log"><span class="page">18:27:56 [oncall] FIRING   SiteSilent severity=critical site=wind-a: No data from any device at wind-a</span>
-<span class="page">18:27:56 [oncall] FIRING   PhaseVoltageCritical severity=critical device=wt-01 phase=l1 site=wind-a: L1 at wt-01 is 0.800 pu, outside ±10%</span>
-<span class="ok">18:32:56 [oncall] RESOLVED SiteSilent severity=critical site=wind-a: No data from any device at wind-a</span></pre>
-                <p class="small faint">Real output from the lab's own Alertmanager config and receiver. Three DeviceSilent alerts and a TurbineFault were raised too, and muted by design.</p>
-              </div>
+              <figure class="inset topo">
+                <figcaption class="label">Data moves one way: OT → DMZ → IT</figcaption>
+                <div class="zone zone-ot"><b>OT</b>Wind, solar, a battery and a substation</div>
+                <div class="conduit"><span>Modbus reads only</span><span class="no">writes refused</span></div>
+                <div class="zone"><b>DMZ</b>Collector, polling on a fixed 10 s schedule</div>
+                <div class="conduit"><span>/metrics only</span></div>
+                <div class="zone"><b>IT</b>Prometheus, Alertmanager, Grafana</div>
+                <a class="text-link small" href="ot.html#boundaries">Every path, and how it's tested</a>
+              </figure>
             </div>
           </article>
 
@@ -242,18 +244,37 @@ BUILD SUCCESSFUL</pre>
           <div class="stat">
             <span class="stat-num">12</span>
             <p>incidents rehearsed end to end in the OT lab, each with its expected alerts, receivers and timing</p>
+            <p class="stat-how">Rehearsed by hand on the running lab, with the measured times written into the script. A test checks every alert and receiver it promises exists, and CI runs the scenario script and an inverter fault end to end on every push.</p>
+            <ul class="plain stat-links" aria-label="Evidence">
+              <li><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/scripts/scenario.sh">scenario.sh</a></li>
+              <li><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/tests/test_scenarios.py">test_scenarios.py</a></li>
+              <li><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/.github/workflows/ci.yml">ci.yml</a></li>
+            </ul>
           </div>
           <div class="stat">
             <span class="stat-num">0</span>
             <p>long-lived AWS keys in CI. GitHub Actions gets short-lived credentials through OIDC</p>
+            <p class="stat-how">Six workflows assume an IAM role with GitHub's OIDC token, and none of them reads an AWS access key.</p>
+            <ul class="plain stat-links" aria-label="Evidence">
+              <li><a href="https://github.com/MPeets/cloud-native-deployment-platform/blob/main/.github/workflows/terraform-apply.yml">terraform-apply.yml</a></li>
+              <li><a href="https://github.com/MPeets/cloud-native-deployment-platform/blob/main/infra/aws-oidc-role-trust-policy.json">trust policy</a></li>
+            </ul>
           </div>
           <div class="stat">
             <span class="stat-num">~40%</span>
             <p>shorter regression cycle at SimplBooks after I built the Cypress suite from scratch</p>
+            <p class="stat-how">Measured at work, comparing the regression cycle before and after the Cypress suite ran in GitHub Actions. The codebase is private, so there's no public link. Ask me about it.</p>
+            <ul class="plain stat-links" aria-label="Evidence">
+              <li><a href="#background">The SimplBooks role</a></li>
+            </ul>
           </div>
           <div class="stat">
             <span class="stat-num">200+</span>
             <p>remote pumping stations I watch over on night shifts at Tallinn's wastewater plant</p>
+            <p class="stat-how">My night-shift job since 2020: answering the alarms, fixing faults on site, escalating SCADA issues.</p>
+            <ul class="plain stat-links" aria-label="Evidence">
+              <li><a href="#background">The operator role</a></li>
+            </ul>
           </div>
         </div>
       </section>
@@ -342,7 +363,7 @@ BUILD SUCCESSFUL</pre>
             <span class="tl-when">2022</span>
             <div class="tl-what">
               <h3>Self-taught start</h3>
-              <p>No CS degree. Got into tech through Udemy courses and documentation, then kept going.</p>
+              <p>Learned through Udemy courses, documentation and hands-on projects. I still learn the same way: by building something real and writing down why it works.</p>
             </div>
           </li>
         </ol>
