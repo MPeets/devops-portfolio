@@ -9,7 +9,8 @@ import jsdom from "jsdom";
 
 const { JSDOM, VirtualConsole, requestInterceptor } = jsdom;
 const SITE = fileURLToPath(new URL("../site/", import.meta.url));
-const PAGES = ["index.html", "platform.html", "lab.html", "qa-task.html", "404.html"];
+const PAGES = ["index.html", "ot.html", "platform.html", "lab.html", "qa-task.html", "404.html"];
+const CASE_STUDIES = ["ot.html", "platform.html", "lab.html", "qa-task.html"];
 
 // Load local scripts and styles, answer anything on the network (fonts) with
 // an empty response so the tests never leave the machine.
@@ -107,12 +108,73 @@ test("home: each terminal command shows only its own output", async () => {
     assert.equal(visible.length, 1);
     assert.equal(visible[0].getAttribute("data-out"), id);
     assert.equal(btn.getAttribute("aria-pressed"), "true");
-    assert.equal(term.querySelector("[data-term-line]").textContent, btn.textContent);
+    assert.equal(
+      term.querySelector("[data-term-line]").textContent,
+      btn.getAttribute("data-line") || btn.textContent
+    );
+  }
+  close();
+});
+
+for (const page of CASE_STUDIES) {
+  test(`${page}: follows the seven-part case study outline`, async () => {
+    const { document, close } = await open(page);
+    const links = Array.from(document.querySelectorAll("nav.outline a"));
+    assert.deepEqual(
+      links.map((a) => a.textContent.replace(/^\d+/, "")),
+      ["Problem", "Architecture", "Key decisions", "Failure scenarios", "Automated checks", "Trade-offs", "Lessons learned"]
+    );
+    for (const a of links) {
+      assert.ok(document.getElementById(a.getAttribute("href").slice(1)), `${a.getAttribute("href")} exists`);
+    }
+    const eyebrows = Array.from(document.querySelectorAll(".eyebrow"), (e) => e.textContent.match(/^\/\/ (\d\d)/));
+    const numbers = eyebrows.filter(Boolean).map((m) => Number(m[1]));
+    assert.deepEqual([...new Set(numbers)], [1, 2, 3, 4, 5, 6, 7], "sections numbered 01 to 07, in order");
+    close();
+  });
+}
+
+test("ot: every boundary tab shows one panel, with allowed and denied paths", async () => {
+  const { document, close } = await open("ot.html");
+  const root = document.querySelector("#boundaries [data-tabs]");
+  const tabs = Array.from(root.querySelectorAll("[data-tab]"));
+  assert.equal(tabs.length, 5);
+  for (const tab of tabs) {
+    click(tab);
+    const shown = Array.from(root.querySelectorAll("[data-panel]")).filter((p) => !p.hidden);
+    assert.equal(shown.length, 1);
+    assert.equal(shown[0].getAttribute("data-panel"), tab.getAttribute("data-tab"));
+    assert.ok(shown[0].querySelector(".mark-ok"), "an allowed path");
+    assert.ok(shown[0].querySelector(".mark-no"), "a denied path");
+    assert.equal(tab.getAttribute("aria-pressed"), "true");
+  }
+  close();
+});
+
+test("ot: the scenario explorer has a panel per incident, captured ones with evidence", async () => {
+  const { document, close } = await open("ot.html");
+  const root = document.querySelector("#failures [data-tabs]");
+  const tabs = Array.from(root.querySelectorAll("[data-tab]"));
+  assert.equal(tabs.length, 12);
+  assert.equal(root.querySelectorAll("[data-panel]").length, 12);
+  const visible = () => Array.from(root.querySelectorAll("[data-panel]")).filter((p) => !p.hidden);
+
+  assert.equal(visible().length, 1, "one incident shown at a time");
+  for (const tab of tabs) {
+    click(tab);
+    assert.equal(visible().length, 1);
+    const panel = visible()[0];
+    assert.equal(panel.getAttribute("data-panel"), tab.getAttribute("data-tab"));
+    assert.ok(panel.querySelectorAll(".steps li").length >= 2, "has a timeline");
+    if (tab.textContent.includes("captured")) {
+      assert.match(panel.querySelector(".evidence pre").textContent, /\[(oncall|team)\] FIRING/);
+    }
   }
   close();
 });
 
 for (const [page, nodeName] of [
+  ["ot.html", "Alertmanager"],
   ["platform.html", "RDS PostgreSQL"],
   ["lab.html", "Alertmanager"],
 ]) {

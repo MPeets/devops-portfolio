@@ -100,6 +100,7 @@ jobs:
         run: >
           npx --yes @lhci/cli@0.15.1 autorun
           --collect.url="${SITE_URL}"
+          --collect.url="${SITE_URL}ot.html"
           --collect.url="${SITE_URL}platform.html"
           --collect.url="${SITE_URL}lab.html"
           --collect.url="${SITE_URL}qa-task.html"
