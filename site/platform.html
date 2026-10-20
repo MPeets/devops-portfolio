@@ -32,25 +32,43 @@
     </header>
 
     <main id="main">
-      <section class="wrap cs-head" aria-labelledby="title">
+      <section class="wrap cs-head" id="problem" aria-labelledby="title">
         <a class="back" href="index.html#projects">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"></path></svg>
-          PROJECT 01
+          PROJECT 02
         </a>
         <h1 class="display" id="title">Cloud-native deployment platform</h1>
-        <p class="lede">A small system with a production shape: an API and a worker on ECS Fargate behind a load balancer, a private Postgres database, secrets that never touch the repo. All of it in Terraform, all of it shipped by pipelines that have to pass tests and a security scan first.</p>
+        <div class="problem">
+          <span class="eyebrow">// 01 · PROBLEM</span>
+          <p>Ship a small API and a background worker to AWS the way a production team would, not the way a tutorial does: a private network, secrets that never touch the repo, no long-lived cloud keys in CI, and nothing reaching production without tests, a security scan and a human approval. Then notice when someone changes it by hand.</p>
+          <ul class="plain must">
+            <li><b>Private by default</b>Tasks and database in private subnets, one public entry point.</li>
+            <li><b>No keys in CI</b>Short-lived credentials through OIDC, issued per run.</li>
+            <li><b>Gated changes</b>Tests and scans first, apply only after approval, rollback by commit SHA.</li>
+            <li><b>Drift is visible</b>A scheduled report of anything changed outside Terraform.</li>
+          </ul>
+        </div>
         <dl class="meta">
           <div><dt>Role</dt><dd>Solo, design to deploy</dd></div>
           <div><dt>Stack</dt><dd>AWS, Terraform, GitHub Actions, Helm</dd></div>
           <div><dt>Tests</dt><dd>19 app, 8 Python, 5 Terraform modules</dd></div>
           <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/cloud-native-deployment-platform">MPeets/cloud-native-deployment-platform</a></dd></div>
         </dl>
+        <nav class="outline" aria-label="Case study sections">
+          <a href="#problem"><span>01</span>Problem</a>
+          <a href="#architecture"><span>02</span>Architecture</a>
+          <a href="#decisions"><span>03</span>Key decisions</a>
+          <a href="#pipeline"><span>04</span>Failure scenarios</a>
+          <a href="#checks"><span>05</span>Automated checks</a>
+          <a href="#tradeoffs"><span>06</span>Trade-offs</a>
+          <a href="#lessons"><span>07</span>Lessons learned</a>
+        </nav>
       </section>
 
       <section class="wrap section" id="architecture" aria-labelledby="arch-title">
         <div class="section-head">
           <div>
-            <span class="eyebrow">// 01 · ARCHITECTURE</span>
+            <span class="eyebrow">// 02 · ARCHITECTURE</span>
             <h2 class="display" id="arch-title">What runs, and why it's shaped this way</h2>
           </div>
           <span class="hint">Click any component</span>
@@ -122,12 +140,49 @@
         </div>
       </section>
 
-      <section class="section-alt" id="pipeline" aria-labelledby="pipeline-title">
+      <section class="section-alt" id="decisions" aria-labelledby="dec-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 03 · KEY DECISIONS</span>
+              <h2 class="display" id="dec-title">Choices that shape every deploy</h2>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="panel panel-stack">
+              <h3>OIDC, not stored keys</h3>
+              <p>GitHub Actions assumes an IAM role for each run, so there's nothing in the repo or its settings to leak and reuse. A separate least-privilege role covers the incident log workflow.</p>
+            </div>
+            <div class="panel panel-stack">
+              <h3>Plan, apply and destroy are separate</h3>
+              <p>Plan is for review. Apply needs a typed confirmation and approval in the production environment. Destroy is manual only, because it's the riskiest thing the repo can do.</p>
+            </div>
+            <div class="panel panel-stack">
+              <h3>Deploy what CI built</h3>
+              <p>Every Terraform workflow takes its image tags from the latest successful CI run on main, so nothing reaches AWS that didn't pass the tests and the image health check.</p>
+            </div>
+            <div class="panel panel-stack">
+              <h3>Rollback is just an apply</h3>
+              <p>No special rollback machinery: run Terraform Apply with the SHA of a commit that worked. It's the same path as every deploy, so it gets exercised all the time.</p>
+            </div>
+            <div class="panel panel-stack">
+              <h3>Private tasks, private endpoints</h3>
+              <p>API, worker and database sit in private subnets. VPC endpoints for ECR, CloudWatch Logs and S3 keep that traffic off the internet.</p>
+            </div>
+            <div class="panel panel-stack">
+              <h3>One app, two targets</h3>
+              <p>The images that run on Fargate also ship as a Helm chart with a migration Job, tested in a throwaway kind cluster, so the app isn't tied to one platform.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="pipeline" aria-labelledby="pipeline-title">
         <div class="wrap section stackv" data-pipeline data-tick="750">
           <div class="section-head">
             <div>
-              <span class="eyebrow">// 02 · PIPELINE</span>
-              <h2 class="display" id="pipeline-title">Every change goes through the same gates</h2>
+              <span class="eyebrow">// 04 · FAILURE SCENARIOS</span>
+              <h2 class="display" id="pipeline-title">What stops a bad change before it ships</h2>
               <p class="muted">Tests and scans run before anything gets planned, and apply waits for a human. Replay a run, or switch on a security finding and watch it stop. The stages match the real workflows; the output is representative.</p>
             </div>
             <div class="toolbar">
@@ -166,10 +221,11 @@
         </div>
       </section>
 
-      <section class="wrap section" id="drift" aria-labelledby="drift-title">
+      <section class="section-alt" id="drift" aria-labelledby="drift-title">
+        <div class="wrap section">
         <div class="split" data-drift-demo>
           <div class="split-copy">
-            <span class="eyebrow">// 03 · OPERATIONS</span>
+            <span class="eyebrow">// 04 · FAILURE SCENARIOS · DRIFT</span>
             <h2 class="display" id="drift-title">Catching changes made by hand</h2>
             <p>Someone fixes something in the AWS console at 2am and never tells Terraform. A scheduled job runs a JSON plan with detailed exit codes, filters the noise and reports what drifted.</p>
             <ul class="plain bullets">
@@ -201,13 +257,37 @@ creates 0 · updates 2 · replacements 0 · deletes 0
 Report written to the job summary.  (simulated example)</pre>
           </div>
         </div>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="checks" aria-labelledby="checks-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 05 · AUTOMATED CHECKS</span>
+              <h2 class="display" id="checks-title">What runs before anything ships</h2>
+              <p class="muted">Tests run before any image is published or any infrastructure is planned, and the health check runs again after every apply.</p>
+            </div>
+          </div>
+          <div class="table-box">
+            <table class="table">
+              <thead><tr><th scope="col">Layer</th><th scope="col">The check</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">API</th><td>14 test cases with supertest and an in-memory fake repository: health, CRUD, validation, status transitions and error handling</td></tr>
+                <tr><th scope="row">Worker</th><td>5 test cases on the state machine: claiming work, success and failure, empty polls, delays and startup retries</td></tr>
+                <tr><th scope="row">Images</th><td>The built API image is started in CI and <code>scripts/health_check.py</code> runs against it before anything is pushed</td></tr>
+                <tr><th scope="row">Terraform</th><td>fmt, validate, tflint and tfsec, plus test files for five modules: network, ALB, ECS cluster, ECS service and RDS</td></tr>
+                <tr><th scope="row">Python tooling</th><td>8 unit tests for drift parsing, migration ordering, idempotent skips and rollback, Pylint, and a replay of the migrations against a real PostgreSQL</td></tr>
+                <tr><th scope="row">After every apply</th><td>The health check again: ALB liveness, <code>/health</code>, ECS capacity, deployment events, stopped-task reasons and recent errors</td></tr>
+              </tbody>
+            </table>
+          </div>
       </section>
 
       <section class="section-alt" id="kubernetes" aria-labelledby="k8s-title">
         <div class="wrap section stackv">
           <div class="section-head">
             <div>
-              <span class="eyebrow">// 04 · KUBERNETES</span>
+              <span class="eyebrow">// 05 · AUTOMATED CHECKS · KUBERNETES</span>
               <h2 class="display" id="k8s-title">Same app, packaged for Kubernetes</h2>
               <p class="muted">A Helm chart for the API, the worker and a migration Job. CI lints it, then installs it into a throwaway kind cluster on every run.</p>
             </div>
@@ -229,7 +309,7 @@ Report written to the job summary.  (simulated example)</pre>
       <section class="wrap section" id="tradeoffs" aria-labelledby="tradeoffs-title">
         <div class="section-head">
           <div>
-            <span class="eyebrow">// 05 · TRADEOFFS</span>
+            <span class="eyebrow">// 06 · TRADE-OFFS</span>
             <h2 class="display" id="tradeoffs-title">Decisions I'd defend, and what they cost</h2>
           </div>
         </div>
@@ -250,6 +330,23 @@ Report written to the job summary.  (simulated example)</pre>
             <h3>Separate plan, apply, destroy</h3>
             <p>Limits the blast radius. Apply needs a confirmation and an approval, destroy is manual only, and rollback is an apply with a known-good image SHA.</p>
           </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="lessons" aria-labelledby="lessons-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 07 · LESSONS LEARNED</span>
+              <h2 class="display" id="lessons-title">What I'd tell myself at the start</h2>
+            </div>
+          </div>
+          <ul class="plain lessons">
+            <li><h3>A broken trust policy looks exactly like a broken deploy</h3><p>With OIDC, a mistake in the IAM trust policy shows up as a deploy that fails before Terraform even runs. Checking the identity step first saves a lot of time spent staring at the wrong logs.</p></li>
+            <li><h3>Separate workflows are cheap insurance</h3><p>Splitting plan, apply and destroy cost a few extra YAML files. In exchange, the riskiest action can't run by accident, and every apply has a person's approval on it.</p></li>
+            <li><h3>A drift report is only useful once it's quiet</h3><p>A raw plan is too noisy to read every morning. Filtering it down to creates, updates, replacements and deletes is what turned it into something worth reading.</p></li>
+            <li><h3>Production shape costs real money</h3><p>Fargate, a load balancer and RDS are more than a small API needs, and they bill by the hour. The AWS path earns its place by showing real boundaries, as long as destroy works as well as apply.</p></li>
+          </ul>
         </div>
       </section>
 

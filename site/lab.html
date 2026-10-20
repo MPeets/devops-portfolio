@@ -32,25 +32,43 @@
     </header>
 
     <main id="main">
-      <section class="wrap cs-head" aria-labelledby="title">
+      <section class="wrap cs-head" id="problem" aria-labelledby="title">
         <a class="back" href="index.html#projects">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"></path></svg>
-          PROJECT 02
+          PROJECT 03
         </a>
         <h1 class="display" id="title">Air-gapped observability lab</h1>
-        <p class="lede">Industrial and OT networks often have no internet at all, so monitoring has to arrive in a box and run on its own. This is that box. Every image pinned, every config in git, every alert rule tested, and an install that never reaches for a registry.</p>
+        <div class="problem">
+          <span class="eyebrow">// 01 · PROBLEM</span>
+          <p>Some networks have no internet at all: industrial sites, labs, anything behind an air gap. Monitoring there can't pull an image, can't fetch a plugin, and can't count on anyone noticing that alerting has quietly stopped. It has to arrive in a box, install from that box, and prove it works without a network.</p>
+          <ul class="plain must">
+            <li><b>Installs without a registry</b>Every image pinned and carried in one checksummed bundle.</li>
+            <li><b>Rules you can trust</b>Every alert unit-tested, including when it has to stay quiet.</li>
+            <li><b>Alerting that proves it's alive</b>An always-firing Watchdog, so silence means broken, not fine.</li>
+            <li><b>Hardened by default</b>Read-only, non-root, one capability, UIs on localhost only.</li>
+          </ul>
+        </div>
         <dl class="meta">
           <div><dt>Role</dt><dd>Solo, commit by commit</dd></div>
           <div><dt>Stack</dt><dd>Prometheus, Alertmanager, Grafana, Compose</dd></div>
           <div><dt>Alerts</dt><dd>10 rules, each with a runbook entry</dd></div>
           <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/airgapped-observability-lab">MPeets/airgapped-observability-lab</a></dd></div>
         </dl>
+        <nav class="outline" aria-label="Case study sections">
+          <a href="#problem"><span>01</span>Problem</a>
+          <a href="#inside"><span>02</span>Architecture</a>
+          <a href="#build"><span>03</span>Key decisions</a>
+          <a href="#simulate"><span>04</span>Failure scenarios</a>
+          <a href="#checks"><span>05</span>Automated checks</a>
+          <a href="#tradeoffs"><span>06</span>Trade-offs</a>
+          <a href="#lessons"><span>07</span>Lessons learned</a>
+        </nav>
       </section>
 
       <section class="wrap section" id="inside" aria-labelledby="inside-title">
         <div class="section-head">
           <div>
-            <span class="eyebrow">// 01 · INSIDE THE GAP</span>
+            <span class="eyebrow">// 02 · ARCHITECTURE</span>
             <h2 class="display" id="inside-title">Everything runs without a way out</h2>
           </div>
           <span class="hint">Click any component</span>
@@ -122,72 +140,11 @@
         </div>
       </section>
 
-      <section class="section-alt" id="simulate" aria-labelledby="sim-title">
-        <div class="wrap section stackv" data-sim data-speed="1">
-          <div class="section-head">
-            <div>
-              <span class="eyebrow">// 02 · BREAK SOMETHING</span>
-              <h2 class="display" id="sim-title">Pick a failure, watch the alert fire</h2>
-              <p class="muted">These are the lab's real alert rules. Prometheus waits out the for: window, then Alertmanager routes the alert by severity. The metric data is simulated, the lifecycle is not.</p>
-            </div>
-          </div>
-
-          <div class="scenarios" role="group" aria-label="Failure scenarios">
-            <button class="scenario" type="button" aria-pressed="true" data-scen="target">Stop node_exporter<small>TargetDown</small></button>
-            <button class="scenario" type="button" aria-pressed="false" data-scen="disk">Fill the disk<small>HostDiskAlmostFull</small></button>
-            <button class="scenario" type="button" aria-pressed="false" data-scen="cert">Let a certificate age<small>TLSCertExpiringSoon</small></button>
-            <button class="scenario" type="button" aria-pressed="false" data-scen="probe">Endpoint stops answering<small>ProbeFailed</small></button>
-          </div>
-
-          <div class="sim">
-            <div class="panel sim-main">
-              <div class="sim-head">
-                <span data-sim-alert>TargetDown</span>
-                <span class="pill pill-ok" data-sim-state>INACTIVE</span>
-              </div>
-<pre class="rule" data-sim-rule>alert: TargetDown
-expr: up{job!~"blackbox-(http|icmp|tls)"} == 0
-for: 2m
-labels:
-  severity: critical</pre>
-              <div class="readout">
-                <span data-sim-metric>up{job="node"}</span>
-                <span>now: <b data-sim-now>1</b></span>
-                <span class="thr-key" data-sim-thr>fires at 0</span>
-              </div>
-              <svg class="chart" viewBox="0 0 640 220" role="img" aria-label="Simulated metric over time" data-sim-chart>
-                <line x1="12" x2="628" y1="63" y2="63" stroke="#20272b"></line>
-                <line x1="12" x2="628" y1="110" y2="110" stroke="#20272b"></line>
-                <line x1="12" x2="628" y1="157" y2="157" stroke="#20272b"></line>
-                <line data-sim-thrline x1="12" x2="628" y1="110" y2="110" stroke="#ff6b5b" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.85"></line>
-                <path data-sim-path d="M 12 42.9 L 296.8 42.9" fill="none" stroke="#7fb8d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
-                <circle data-sim-dot cx="296.8" cy="42.9" r="5" fill="#7fb8d6" stroke="#0e1113" stroke-width="2"></circle>
-              </svg>
-              <div class="axis"><span data-sim-start>-12m</span><span>simulated time</span><span>now</span></div>
-            </div>
-
-            <div class="panel sim-side">
-              <span class="label">Alert lifecycle</span>
-              <ol class="plain lifecycle">
-                <li data-lc="0" data-state="current" data-tone="ok"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">OK</span><span class="lc-desc">Expression is false. Nothing to do.</span></span></li>
-                <li data-lc="1" data-state="next" data-tone="warn"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">PENDING</span><span class="lc-desc" data-lc-desc>Condition is true. Waiting out for: 2m so a blip never pages anyone.</span></span></li>
-                <li data-lc="2" data-state="next" data-tone="bad"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">FIRING</span><span class="lc-desc" data-lc-desc>Still true after 2m. Prometheus sends it to Alertmanager.</span></span></li>
-                <li data-lc="3" data-state="next" data-tone="bad"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">NOTIFIED</span><span class="lc-desc" data-lc-desc>Routed to oncall and delivered to webhook-logger.</span></span></li>
-              </ol>
-              <div class="actions">
-                <button class="btn btn-danger" type="button" data-sim-trigger>Trigger the fault</button>
-                <button class="btn btn-ghost" type="button" data-sim-reset>Reset</button>
-              </div>
-              <p class="note" data-sim-note>Probe jobs are excluded on purpose. ProbeFailed covers those, so one failure never raises two alerts.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="wrap section stackv" id="install" aria-labelledby="install-title" data-stepper>
+      <section class="section-alt" id="install" aria-labelledby="install-title">
+        <div class="wrap section stackv" data-stepper>
         <div class="section-head">
           <div>
-            <span class="eyebrow">// 03 · CROSSING THE GAP</span>
+            <span class="eyebrow">// 02 · ARCHITECTURE · DELIVERY</span>
             <h2 class="display" id="install-title">The offline install, step by step</h2>
             <p class="muted">You can't pull images on the other side, so the stack travels as one checksummed bundle. CI rehearses it on every push to main: bundle, install with registries blocked, smoke test.</p>
           </div>
@@ -246,14 +203,15 @@ labels:
             <button class="btn btn-primary" type="button" data-step-next>Next step</button>
           </div>
         </div>
+        </div>
       </section>
 
-      <section class="section-alt" id="build" aria-labelledby="build-title">
+      <section id="build" aria-labelledby="build-title">
         <div class="wrap section stackv">
           <div class="section-head">
             <div>
-              <span class="eyebrow">// 04 · BUILT STEP BY STEP</span>
-              <h2 class="display" id="build-title">Fourteen steps, each with a reason</h2>
+              <span class="eyebrow">// 03 · KEY DECISIONS</span>
+              <h2 class="display" id="build-title">Fourteen decisions, one commit each</h2>
             </div>
             <p>Every step added one thing and wrote down why. Open one to read the decision. The <a href="https://github.com/MPeets/airgapped-observability-lab/commits/main">full commit history</a> is on GitHub.</p>
           </div>
@@ -276,10 +234,133 @@ labels:
         </div>
       </section>
 
+      <section class="section-alt" id="simulate" aria-labelledby="sim-title">
+        <div class="wrap section stackv" data-sim data-speed="1">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 04 · FAILURE SCENARIOS</span>
+              <h2 class="display" id="sim-title">Pick a failure, watch the alert fire</h2>
+              <p class="muted">These are the lab's real alert rules. Prometheus waits out the for: window, then Alertmanager routes the alert by severity. The metric data is simulated, the lifecycle is not.</p>
+            </div>
+          </div>
+
+          <div class="scenarios" role="group" aria-label="Failure scenarios">
+            <button class="scenario" type="button" aria-pressed="true" data-scen="target">Stop node_exporter<small>TargetDown</small></button>
+            <button class="scenario" type="button" aria-pressed="false" data-scen="disk">Fill the disk<small>HostDiskAlmostFull</small></button>
+            <button class="scenario" type="button" aria-pressed="false" data-scen="cert">Let a certificate age<small>TLSCertExpiringSoon</small></button>
+            <button class="scenario" type="button" aria-pressed="false" data-scen="probe">Endpoint stops answering<small>ProbeFailed</small></button>
+          </div>
+
+          <div class="sim">
+            <div class="panel sim-main">
+              <div class="sim-head">
+                <span data-sim-alert>TargetDown</span>
+                <span class="pill pill-ok" data-sim-state>INACTIVE</span>
+              </div>
+<pre class="rule" data-sim-rule>alert: TargetDown
+expr: up{job!~"blackbox-(http|icmp|tls)"} == 0
+for: 2m
+labels:
+  severity: critical</pre>
+              <div class="readout">
+                <span data-sim-metric>up{job="node"}</span>
+                <span>now: <b data-sim-now>1</b></span>
+                <span class="thr-key" data-sim-thr>fires at 0</span>
+              </div>
+              <svg class="chart" viewBox="0 0 640 220" role="img" aria-label="Simulated metric over time" data-sim-chart>
+                <line x1="12" x2="628" y1="63" y2="63" stroke="#20272b"></line>
+                <line x1="12" x2="628" y1="110" y2="110" stroke="#20272b"></line>
+                <line x1="12" x2="628" y1="157" y2="157" stroke="#20272b"></line>
+                <line data-sim-thrline x1="12" x2="628" y1="110" y2="110" stroke="#ff6b5b" stroke-width="1.5" stroke-dasharray="6 6" opacity="0.85"></line>
+                <path data-sim-path d="M 12 42.9 L 296.8 42.9" fill="none" stroke="#7fb8d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
+                <circle data-sim-dot cx="296.8" cy="42.9" r="5" fill="#7fb8d6" stroke="#0e1113" stroke-width="2"></circle>
+              </svg>
+              <div class="axis"><span data-sim-start>-12m</span><span>simulated time</span><span>now</span></div>
+            </div>
+
+            <div class="panel sim-side">
+              <span class="label">Alert lifecycle</span>
+              <ol class="plain lifecycle">
+                <li data-lc="0" data-state="current" data-tone="ok"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">OK</span><span class="lc-desc">Expression is false. Nothing to do.</span></span></li>
+                <li data-lc="1" data-state="next" data-tone="warn"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">PENDING</span><span class="lc-desc" data-lc-desc>Condition is true. Waiting out for: 2m so a blip never pages anyone.</span></span></li>
+                <li data-lc="2" data-state="next" data-tone="bad"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">FIRING</span><span class="lc-desc" data-lc-desc>Still true after 2m. Prometheus sends it to Alertmanager.</span></span></li>
+                <li data-lc="3" data-state="next" data-tone="bad"><span class="lc-dot"></span><span class="lc-text"><span class="lc-name">NOTIFIED</span><span class="lc-desc" data-lc-desc>Routed to oncall and delivered to webhook-logger.</span></span></li>
+              </ol>
+              <div class="actions">
+                <button class="btn btn-danger" type="button" data-sim-trigger>Trigger the fault</button>
+                <button class="btn btn-ghost" type="button" data-sim-reset>Reset</button>
+              </div>
+              <p class="note" data-sim-note>Probe jobs are excluded on purpose. ProbeFailed covers those, so one failure never raises two alerts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="checks" aria-labelledby="checks-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 05 · AUTOMATED CHECKS</span>
+              <h2 class="display" id="checks-title">Checked before anything is bundled</h2>
+              <p class="muted"><code>scripts/check.sh</code> runs the same checks on a laptop as in CI, with the same pinned tools.</p>
+            </div>
+          </div>
+          <div class="table-box">
+            <table class="table">
+              <thead><tr><th scope="col">Check</th><th scope="col">What it covers</th><th scope="col">When</th></tr></thead>
+              <tbody>
+                <tr><th scope="row"><code>check.sh</code></th><td>Prometheus config, rule unit tests, alert routing, blackbox config, and that every alert links to a runbook section</td><td>Every push</td></tr>
+                <tr><th scope="row">Static checks</th><td>shellcheck on every script, the Python compiled, every dashboard parsed as JSON</td><td>Every push</td></tr>
+                <tr><th scope="row"><code>smoke-test.sh</code></th><td>The running stack end to end</td><td>Every push</td></tr>
+                <tr><th scope="row">Offline rehearsal</th><td><code>bundle.sh</code>, then <code>install.sh</code> with the registries blocked, then the smoke test again</td><td>Main and manual runs</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="evidence">
+            <div class="evidence-head"><span>Captured: the lab's rules, run locally</span><span>20 Oct 2026 · Prometheus 3.5.0</span></div>
+<pre>$ promtool check rules prometheus/rules/*.yml
+Checking prometheus/rules/alerts.yml
+  SUCCESS: 10 rules found
+Checking prometheus/rules/recording.yml
+  SUCCESS: 8 rules found
+
+$ promtool test rules prometheus/tests/*.yml
+<span class="ok">  SUCCESS</span>
+(19 test cases, 8 of them checking that an alert stays quiet)</pre>
+          </div>
+      </section>
+
+      <section class="section-alt" id="tradeoffs" aria-labelledby="trade-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 06 · TRADE-OFFS</span>
+              <h2 class="display" id="trade-title">Lab versus production</h2>
+              <p class="muted">Everything here is sized for one machine and one person. This is what I'd change before trusting it with a real site.</p>
+            </div>
+          </div>
+          <div class="table-box">
+            <table class="table">
+              <thead><tr><th scope="col">Area</th><th scope="col">In this lab</th><th scope="col">In production</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Notifications</th><td>webhook-logger prints to the console</td><td>Internal mail relay, internal chat, or SMS through a GSM modem</td></tr>
+                <tr><th scope="row">Alertmanager</th><td>A single instance</td><td>Two or three in a cluster, so alerting survives a server failure</td></tr>
+                <tr><th scope="row">Watchdog</th><td>Visible in the logger</td><td>An independent dead man's switch that alarms when it stops</td></tr>
+                <tr><th scope="row">Grafana access</th><td>HTTP on localhost, local admin</td><td>HTTPS from the internal CA, secure cookies, central login</td></tr>
+                <tr><th scope="row">CA private key</th><td>On disk</td><td>Offline or in an HSM</td></tr>
+                <tr><th scope="row">Bundle integrity</th><td>SHA256 checksums</td><td>Signed checksums, and a vulnerability scan before transfer</td></tr>
+                <tr><th scope="row">Images</th><td><code>docker load</code> on the host</td><td>An internal registry inside the air-gapped network</td></tr>
+                <tr><th scope="row">Targets</th><td>Hand-written files</td><td>Generated from a CMDB or inventory, reviewed in git</td></tr>
+                <tr><th scope="row">Retention</th><td>15 days, 5 GB</td><td>Sized for the site, possibly with long-term storage</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section class="wrap section" id="ot" aria-labelledby="ot-title">
         <div class="section-head">
           <div>
-            <span class="eyebrow">// 05 · TAKING IT TO OT</span>
+            <span class="eyebrow">// 06 · TRADE-OFFS · OT SITES</span>
             <h2 class="display" id="ot-title">What changes on a real industrial site</h2>
           </div>
           <p>The lab is one network. The <a href="https://github.com/MPeets/airgapped-observability-lab/blob/main/docs/ot-adaptation.md">OT adaptation notes</a> cover what it takes to run this next to real equipment.</p>
@@ -305,6 +386,23 @@ labels:
             <h3>Hardened by default</h3>
             <p>Read-only, non-root, one capability, localhost-only UIs. The same defaults hold on a site as in the lab.</p>
           </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="lessons" aria-labelledby="lessons-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 07 · LESSONS LEARNED</span>
+              <h2 class="display" id="lessons-title">What the lab taught me</h2>
+            </div>
+          </div>
+          <ul class="plain lessons">
+            <li><h3>Read-only containers break tools in surprising places</h3><p>Making every root filesystem read-only broke the rule tests: promtool needs somewhere to write a temporary database. A small in-memory /tmp fixed it without giving the container anything else writable.</p></li>
+            <li><h3>Windows shells rewrite container paths</h3><p>Git Bash quietly turned <code>/etc/prometheus/...</code> into a Windows path before Docker ever saw it. Every script now sets <code>MSYS_NO_PATHCONV=1</code>, so they behave the same on a laptop and in CI.</p></li>
+            <li><h3>Silence has to be proven, not assumed</h3><p>A quiet alert channel looks exactly like a healthy system and exactly like a broken pipeline. An always-firing Watchdog is what tells the two apart.</p></li>
+            <li><h3>An alert that never fires is worse than none</h3><p>It gives false confidence. Unit tests that feed each rule synthetic data, and check both firing and staying quiet, are the only way to know a rule works before the night it's needed.</p></li>
+          </ul>
         </div>
       </section>
 
