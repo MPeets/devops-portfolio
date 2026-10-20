@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OT energy monitoring · Mihkel Peets</title>
+    <meta name="description" content="Case study: monitoring a simulated wind, solar, battery and substation fleet across OT, DMZ and IT networks, with a read-only path into OT, alerts judged against physics and twelve rehearsed incidents.">
+    <meta name="theme-color" content="#0e1113">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="OT energy monitoring · Mihkel Peets">
+    <meta property="og:description" content="A simulated generation fleet behind OT, DMZ and IT networks: read-only into OT, no data kept apart from no output, one cause per page, twelve incidents rehearsed end to end.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/js/common.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="Main">
+        <a class="brand" href="index.html">MIHKEL PEETS<span>_</span></a>
+        <div class="nav-links">
+          <a href="index.html#projects">All projects</a>
+          <a href="https://github.com/MPeets">GitHub</a>
+          <a class="btn btn-primary" href="index.html#contact">Get in touch</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="wrap cs-head" id="problem" aria-labelledby="title">
+        <a class="back" href="index.html#projects">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8H3M7 4L3 8l4 4"></path></svg>
+          PROJECT 01 · FLAGSHIP
+        </a>
+        <h1 class="display" id="title">OT energy monitoring</h1>
+        <div class="problem">
+          <span class="eyebrow">// 01 · PROBLEM</span>
+          <p>A generation fleet sits behind OT network boundaries: wind turbines, solar inverters, a battery, and the substation that connects them to the grid. Monitoring has to read through those boundaries without opening a way in, and it has to be right at 3am. Plenty of dashboards show a silent turbine as 0 MW and a curtailed one as a fault, and both send someone out for the wrong reason. I've worked that night shift for real, as the person answering alarms from 200+ remote pumping stations, so I know what a misleading alarm costs.</p>
+          <ul class="plain must">
+            <li><b>Never mistake no data for no output</b>Silence is a state of its own, not 0 MW, and it mutes everything built on the missing data.</li>
+            <li><b>Judge output against physics</b>Against what the wind, the sun and the setpoints allow. Curtailment is never a loss.</li>
+            <li><b>Read OT, never write to it</b>One read-only path in, proven from inside every network.</li>
+            <li><b>One cause, one page</b>A dead link or a grid trip arrives as one notification, not a flood.</li>
+          </ul>
+        </div>
+        <div class="notice">
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"></circle><path d="M8 7.2v4M8 4.8v.1"></path></svg>
+          <p><strong>A lab, not a plant.</strong> The devices and their physics are simulated in containers and generic: they don't model any real site and haven't been run against real equipment. The monitoring stack, its configuration and its tests are real. <a href="#tradeoffs">Section 06</a> spells out what's validated and what isn't.</p>
+        </div>
+        <dl class="meta">
+          <div><dt>Role</dt><dd>Solo, commit by commit</dd></div>
+          <div><dt>Stack</dt><dd>Prometheus, Alertmanager, Grafana, Telegraf, Modbus TCP, Python</dd></div>
+          <div><dt>Tested</dt><dd>137 unit tests, 98 alert rule cases, 12 rehearsed incidents</dd></div>
+          <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/ot-energy-monitoring">MPeets/ot-energy-monitoring</a></dd></div>
+        </dl>
+        <nav class="outline" aria-label="Case study sections">
+          <a href="#problem"><span>01</span>Problem</a>
+          <a href="#architecture"><span>02</span>Architecture</a>
+          <a href="#decisions"><span>03</span>Key decisions</a>
+          <a href="#failures"><span>04</span>Failure scenarios</a>
+          <a href="#checks"><span>05</span>Automated checks</a>
+          <a href="#tradeoffs"><span>06</span>Trade-offs</a>
+          <a href="#lessons"><span>07</span>Lessons learned</a>
+        </nav>
+      </section>
+
+      <section class="wrap section stackv" id="architecture" aria-labelledby="arch-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 02 · ARCHITECTURE</span>
+            <h2 class="display" id="arch-title">Four networks, and data only moves one way</h2>
+            <p class="muted">Field on the left, control room on the right. Data moves up from the devices to the people watching them, and each network only reaches its neighbour. The gateway, the collector and Prometheus each sit on two networks and route nothing between them.</p>
+          </div>
+          <span class="hint">Click any component</span>
+        </div>
+
+        <div class="diagram-box" data-diagram>
+          <div class="diagram-scroll">
+            <div class="diagram" style="width: 1040px; height: 480px">
+              <svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+                <defs>
+                  <marker id="ah" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path class="arrow-head" fill="#7d878c" d="M0 0 L4 2 L0 4 Z"></path></marker>
+                </defs>
+              </svg>
+              <div class="band band-dashed" style="left: 16px; top: 40px; width: 300px; height: 420px"></div>
+              <div class="band band-solid" style="left: 324px; top: 40px; width: 200px; height: 420px"></div>
+              <div class="band band-solid" style="left: 532px; top: 40px; width: 200px; height: 420px"></div>
+              <div class="band band-dashed" style="left: 740px; top: 40px; width: 284px; height: 420px"></div>
+
+              <svg class="arrow" width="20" height="8" viewBox="0 0 20 8" style="left: 202px; top: 124px" aria-hidden="true"><path d="M 0 4 L 20 4"></path></svg>
+              <svg class="arrow" width="20" height="8" viewBox="0 0 20 8" style="left: 202px; top: 190px" aria-hidden="true"><path d="M 0 4 L 20 4"></path></svg>
+              <svg class="arrow" width="20" height="8" viewBox="0 0 20 8" style="left: 202px; top: 256px" aria-hidden="true"><path d="M 0 4 L 20 4"></path></svg>
+              <svg class="arrow" width="20" height="8" viewBox="0 0 20 8" style="left: 202px; top: 322px" aria-hidden="true"><path d="M 0 4 L 20 4"></path></svg>
+              <svg class="arrow" width="8" height="198" viewBox="0 0 8 198" style="left: 218px; top: 128px" aria-hidden="true"><path d="M 4 0 L 4 198"></path></svg>
+              <svg class="arrow" width="29" height="8" viewBox="0 0 29 8" style="left: 222px; top: 256px" aria-hidden="true"><path d="M 0 4 L 25 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="71" height="8" viewBox="0 0 71 8" style="left: 388px; top: 256px" aria-hidden="true"><path d="M 0 4 L 67 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="71" height="8" viewBox="0 0 71 8" style="left: 596px; top: 256px" aria-hidden="true"><path d="M 0 4 L 67 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="23" height="8" viewBox="0 0 23 8" style="left: 804px; top: 256px" aria-hidden="true"><path d="M 0 4 L 19 4" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="92" height="8" viewBox="0 0 92 8" style="left: 736px; top: 144px" aria-hidden="true"><path d="M 92 4 L 0 4"></path></svg>
+              <svg class="arrow" width="8" height="83" viewBox="0 0 8 83" style="left: 732px; top: 148px" aria-hidden="true"><path d="M 4 0 L 4 79" marker-end="url(#ah)"></path></svg>
+              <svg class="arrow" width="8" height="55" viewBox="0 0 8 55" style="left: 914px; top: 288px" aria-hidden="true"><path d="M 4 0 L 4 51" marker-end="url(#ah)"></path></svg>
+
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 100px; width: 170px; height: 56px"
+                data-kind="OT · devices" data-name="Wind park A"
+                data-what="Three 3.6 MW turbines sharing one wind field. Each serves its register map over Modbus TCP on port 502: power, per-phase voltage, frequency, wind speed, rotor speed and state, plus a writable power limit."
+                data-file="fleet/models/turbine.py, fleet/register_map.toml"><span><b>Wind park A</b><small>wt-01, wt-02, wt-03</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 166px; width: 170px; height: 56px"
+                data-kind="OT · devices" data-name="Solar park B"
+                data-what="Two 2.5 MW inverters with 3 MWp of modules each and one pyranometer. They clip at their rating, report fault codes, and trip on their own grid protection."
+                data-file="fleet/models/inverter.py"><span><b>Solar park B</b><small>inv-01, inv-02</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 232px; width: 170px; height: 56px"
+                data-kind="OT · devices" data-name="Battery C"
+                data-what="5 MW / 10 MWh. Follows a trading schedule and answers grid frequency with its reserve. Reports state of charge and cell temperature, and its battery management system trips at 55 °C."
+                data-file="fleet/models/battery.py"><span><b>Battery C</b><small>bess-01</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 298px; width: 170px; height: 56px"
+                data-kind="OT · devices" data-name="Substation D"
+                data-what="110/20 kV, 25 MVA at the point of connection. Its RTU polls every feeder and reports what the fleet exports, and the transformer's oil follows the IEC 60076-7 thermal model."
+                data-file="fleet/models/substation.py"><span><b>Substation D</b><small>sub-01 and its RTU</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 32px; top: 364px; width: 170px; height: 56px"
+                data-kind="OT · tool" data-name="OT workstation"
+                data-what="The only place writes come from. It stands in for the park controller sending setpoints, inside OT, and only runs on demand."
+                data-file="fleet/cli.py"><span><b>OT workstation</b><small>writes setpoints</small></span></button>
+              <button class="node" type="button" aria-pressed="true" style="left: 252px; top: 232px; width: 136px; height: 56px"
+                data-kind="Conduit · OT to DMZ" data-name="Read-only Modbus gateway"
+                data-what="The only way into OT. Routes each request by Modbus unit id from the inventory, and answers anything but a read with exception 1, Illegal Function. A unit id that isn't in the inventory gets nothing: nothing scans for devices."
+                data-file="fleet/gateway.py, inventory.toml"><span><b>Gateway</b><small>reads only</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 460px; top: 232px; width: 136px; height: 56px"
+                data-kind="DMZ" data-name="Collector (Telegraf)"
+                data-what="Reads every device through the gateway every 10 s, on its own fixed schedule, so nothing on the IT side decides what gets polled or how often. Its device config is generated from the inventory, and a test fails if it drifts."
+                data-file="collector/telegraf.conf, collector/telegraf.d/devices.conf"><span><b>Collector</b><small>Telegraf · 10 s</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 668px; top: 232px; width: 136px; height: 56px"
+                data-kind="IT · core" data-name="Prometheus"
+                data-what="Scrapes the collector and nothing else, so its config never names a device, an OT address or a Modbus port. Recording rules and 23 alerts, each judged against physics rather than a fixed number."
+                data-file="prometheus/prometheus.yml, prometheus/rules/"><span><b>Prometheus</b><small>rules and alerts</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 828px; top: 120px; width: 180px; height: 56px"
+                data-kind="IT · dashboards" data-name="Grafana"
+                data-what="The fleet overview for the control room, then wind, solar and battery drill-downs, all provisioned from files. Silence is purple, curtailment blue, faults red. Read-only, and it makes no outbound calls."
+                data-file="grafana/dashboards/"><span><b>Grafana</b><small>fleet overview</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 828px; top: 232px; width: 180px; height: 56px"
+                data-kind="IT · alerting" data-name="Alertmanager"
+                data-what="Critical pages on-call, warnings go to the shift, info goes to the log, and underperformance waits for the morning. Nine inhibition rules keep one cause to one notification."
+                data-file="alertmanager/alertmanager.yml"><span><b>Alertmanager</b><small>route and inhibit</small></span></button>
+              <button class="node" type="button" aria-pressed="false" style="left: 828px; top: 344px; width: 180px; height: 56px"
+                data-kind="IT · receiver" data-name="webhook-logger"
+                data-what="Stands in for the pager, the shift's queue and the log: one line per notification, so routing and inhibition can be watched live."
+                data-file="tools/webhook-logger/server.py"><span><b>webhook-logger</b><small>stand-in pager</small></span></button>
+
+              <span class="d-label" style="left: 32px; top: 52px">OT ZONE</span>
+              <span class="d-sub" style="left: 32px; top: 70px">ot · internal, no route out</span>
+              <span class="d-label" style="left: 340px; top: 52px">CONDUIT</span>
+              <span class="d-sub" style="left: 340px; top: 70px">ot-dmz · Modbus reads</span>
+              <span class="d-label" style="left: 548px; top: 52px">CONDUIT</span>
+              <span class="d-sub" style="left: 548px; top: 70px">dmz-it · /metrics only</span>
+              <span class="d-label" style="left: 756px; top: 52px">IT ZONE</span>
+              <span class="d-sub" style="left: 756px; top: 70px">it · UIs on localhost</span>
+              <span class="d-note" style="left: 400px; top: 232px; width: 48px">reads</span>
+              <span class="d-note" style="left: 600px; top: 232px; width: 64px">/metrics</span>
+              <span class="d-note" style="left: 748px; top: 182px; width: 52px">PromQL</span>
+              <span class="d-note" style="left: 930px; top: 308px; width: 70px">webhooks</span>
+            </div>
+          </div>
+          <div class="inspector" aria-live="polite">
+            <div class="inspector-title">
+              <span class="label" data-insp="kind">Conduit · OT to DMZ</span>
+              <span class="inspector-name" data-insp="name">Read-only Modbus gateway</span>
+            </div>
+            <div class="inspector-body">
+              <p data-insp="what">The only way into OT. Routes each request by Modbus unit id from the inventory, and answers anything but a read with exception 1, Illegal Function. A unit id that isn't in the inventory gets nothing: nothing scans for devices.</p>
+              <span class="inspector-file">in the repo: <span data-insp="file">fleet/gateway.py, inventory.toml</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel panel-stack">
+          <h3>What the control room sees</h3>
+          <p>The fleet overview opens on export at the connection point, grid frequency, silent devices and alerts firing, then every unit's state, generation, the grid and heat underneath. One panel stacks what the weather allows, what the setpoints allow and what the fleet makes, so curtailment and lost energy show up as separate bands. Colours follow cause:</p>
+          <ul class="plain swatches" aria-label="Unit state colours">
+            <li><i style="background: #73bf69"></i>producing</li>
+            <li><i style="background: #5794f2"></i>curtailed by a setpoint</li>
+            <li><i style="background: #9a9a9a"></i>low wind or standby</li>
+            <li><i style="background: #f2495c"></i>fault</li>
+            <li><i style="background: #fade2a"></i>maintenance</li>
+            <li><i style="background: #b877d9"></i>no data</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="section-alt" id="boundaries" aria-labelledby="bound-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 02 · ARCHITECTURE · BOUNDARIES</span>
+              <h2 class="display" id="bound-title">What can reach what, and how it's proven</h2>
+              <p class="muted">Each network is checked from the inside. <code>scripts/check-segmentation.sh</code> starts a throwaway container on each network and tries every path. Blocked paths are tried by name and by every IP address the target has, since a name that doesn't resolve proves nothing on its own. CI runs it on every push, and again on the copy installed from the offline bundle.</p>
+            </div>
+          </div>
+
+          <div class="stackv" data-tabs>
+            <div class="tablist" role="group" aria-label="Pick a network">
+              <button class="tab" type="button" aria-pressed="true" data-tab="ot">From OT</button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="ot-dmz">From the OT to DMZ conduit</button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="dmz-it">From the DMZ to IT conduit</button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="it">From IT</button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="gateway">Through the gateway</button>
+            </div>
+
+            <div class="paths" data-panel="ot">
+              <div class="panel">
+                <h3 class="label">Allowed, must be open</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-ok"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"></path></svg></span><span class="path-text"><span class="sr">Allowed:</span><span class="path-target">wt-01:502</span><span class="path-why">Devices reach each other: the substation's RTU polls the feeders.</span></span></li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h3 class="label">Denied, must be closed</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">the internet (1.1.1.1:53)</span><span class="path-why">The ot network is internal. Nothing in it has a route out.</span></span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="paths" data-panel="ot-dmz">
+              <div class="panel">
+                <h3 class="label">Allowed, must be open</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-ok"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"></path></svg></span><span class="path-text"><span class="sr">Allowed:</span><span class="path-target">modbus-gateway:502</span><span class="path-why">The one way into OT, and it only passes reads.</span></span></li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h3 class="label">Denied, must be closed</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">wt-01:502, by name and every IP</span><span class="path-why">The DMZ never talks to a device directly.</span></span></li>
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">the internet (1.1.1.1:53)</span><span class="path-why">Conduits are internal networks too.</span></span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="paths" data-panel="dmz-it">
+              <div class="panel">
+                <h3 class="label">Allowed, must be open</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-ok"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"></path></svg></span><span class="path-text"><span class="sr">Allowed:</span><span class="path-target">collector:9273</span><span class="path-why">The collector's metrics endpoint, the only thing Prometheus scrapes.</span></span></li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h3 class="label">Denied, must be closed</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">modbus-gateway:502 and wt-01:502</span><span class="path-why">Nothing on this side can reach towards OT.</span></span></li>
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">alertmanager:9093 and grafana:3000</span><span class="path-why">Nothing in the DMZ can raise, silence or read an alert.</span></span></li>
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">the internet (1.1.1.1:53)</span><span class="path-why">Internal, like every network but IT.</span></span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="paths" data-panel="it">
+              <div class="panel">
+                <h3 class="label">Allowed, must be open</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-ok"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"></path></svg></span><span class="path-text"><span class="sr">Allowed:</span><span class="path-target">prometheus:9090, alertmanager:9093, grafana:3000</span><span class="path-why">The UIs people use, published to the host on 127.0.0.1 only.</span></span></li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h3 class="label">Denied, must be closed</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">collector:9273</span><span class="path-why">Only Prometheus reaches it, through its second network.</span></span></li>
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">modbus-gateway:502 and wt-01:502</span><span class="path-why">No path from the office side to a device.</span></span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="paths" data-panel="gateway">
+              <div class="panel">
+                <h3 class="label">Allowed, passed through</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-ok"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3 3 7-7"></path></svg></span><span class="path-text"><span class="sr">Allowed:</span><span class="path-target">Modbus reads, by unit id</span><span class="path-why">Routed to the device the inventory names for that unit id.</span></span></li>
+                </ul>
+              </div>
+              <div class="panel">
+                <h3 class="label">Denied, refused by the gateway</h3>
+                <ul class="plain path-list">
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">Any write</span><span class="path-why">Answered with exception 0x01, Illegal Function, and logged. CI checks a setpoint write from the DMZ comes back refused.</span></span></li>
+                  <li><span class="mark mark-no"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"></path></svg></span><span class="path-text"><span class="sr">Denied:</span><span class="path-target">A unit id not in the inventory</span><span class="path-why">Answered with exception 0x0A, Gateway Path Unavailable. Monitoring only knows the asset list.</span></span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="evidence">
+            <div class="evidence-head"><span>Captured: the gateway's answers</span><span>20 Oct 2026 · simulator and gateway run locally</span></div>
+<pre class="cols"># From the DMZ: read wt-02 through the gateway (unit 12)
+$ python -m fleet.cli --unit 12 dump modbus-gateway
+modbus-gateway: turbine, register map v2
+  holding    0  power_limit                     100.0 %  [writable]
+  input     10  frequency                      49.985 Hz
+  input     19  active_power                     1576 kW
+  input     30  wind_speed                       9.17 m/s
+  input     31  state                               1 (producing)
+  (11 more registers)
+
+# From the DMZ: try to change a setpoint through the gateway
+$ python -m fleet.cli --unit 12 write modbus-gateway power_limit 0
+modbus-gateway: turbine, register map v2
+<span class="page">modbus-gateway: function 0x06 refused: exception 0x01 (Illegal Function)</span>
+
+# In OT, from the workstation: the park controller's path
+$ python -m fleet.cli write wt-02 power_limit 50
+wt-02: turbine, register map v2
+<span class="ok">  power_limit = 50.0 %</span>
+
+# wt-02 stops answering
+$ python -m fleet.cli --unit 12 dump modbus-gateway
+<span class="shift">modbus-gateway: function 0x04 refused: exception 0x0b (Gateway Target Device Failed to Respond)</span></pre>
+            <p class="evidence-note">Run outside Docker, one simulated turbine plus the gateway, to record what the gateway answers. A silent device comes back as an explicit "failed to respond", never as zeros. The network checks above need the full lab, so they run in CI.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="decisions" aria-labelledby="dec-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 03 · KEY DECISIONS</span>
+            <h2 class="display" id="dec-title">The decisions that make it credible</h2>
+            <p class="muted">Installing Prometheus is the easy part. These are the calls that decide whether anyone trusts what it says.</p>
+          </div>
+        </div>
+        <div class="grid-4">
+          <div class="panel panel-stack">
+            <h3>No data is never no output</h3>
+            <p>Whether a device answers comes from the collector's per-device gather counter, which exists whether the device answers or not. No comms alert looks at power, no generation alert fires for a silent device, and silence is purple on every dashboard.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Judged against physics</h3>
+            <p>A turbine against its power curve at its own wind, an inverter against its irradiance, both capped at their power limit. Calm nights, curtailment and clipping lower the expectation instead of counting as losses. A contract test keeps the simulator, rules and dashboards on one curve.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Real grid thresholds</h3>
+            <p>The Baltic grids have run synchronously with Continental Europe since February 2025, so frequency alerts use that area's System Operation Guideline criteria. They work from the median of at least three meters, so one bad meter gets its own alert and pages nobody.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Cause before number</h3>
+            <p>Protection trips at its limit either way. The transformer alert compares oil temperature with what its load explains, so failed fans show up around 55 °C, long before an 85 °C alarm. The battery alert watches cells still climbing while charging.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>One cause, one page</h3>
+            <p>No data mutes everything that depends on it, resolved notifications included. Critical mutes its own warning. A grid voltage alert mutes the trip it caused, and stays on through the unit's 60 second reconnect.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>IT can't generate traffic into OT</h3>
+            <p>The collector polls on its own fixed schedule. Prometheus only scrapes the collector, so nothing on the IT side chooses what gets polled or how often. That's why there's no blackbox-style exporter that takes its target as a parameter.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>The inventory is the asset list</h3>
+            <p>A device in <code>inventory.toml</code> that doesn't answer is an incident. One that isn't in it doesn't exist, because nothing scans for devices. The collector config is generated from the inventory, and a test fails if it drifts.</p>
+          </div>
+          <div class="panel panel-stack">
+            <h3>Offline and hardened by default</h3>
+            <p>Every image pinned, installed from one verified bundle with registry pulls disabled. Read-only root filesystems, no Linux capabilities, non-root processes, and only the three UIs published, on localhost.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-alt" id="failures" aria-labelledby="fail-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 04 · FAILURE SCENARIOS</span>
+              <h2 class="display" id="fail-title">Twelve incidents, rehearsed end to end</h2>
+              <p class="muted">Each one is a <code>scripts/scenario.sh</code> command that changes the simulated world, then says which alerts to expect, who hears about them and roughly when. The times were measured on the running lab. Some scenarios exist for what must <em>not</em> happen.</p>
+            </div>
+          </div>
+
+          <div class="explorer" data-tabs>
+            <div class="explorer-list" role="group" aria-label="Pick an incident">
+              <button class="tab" type="button" aria-pressed="true" data-tab="site-silent">A whole site goes silent<small>comms · captured</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="frozen">A controller freezes<small>comms · captured</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="grid-trip">The grid trips a turbine<small>grid · captured</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="insulation">An inverter faults<small>generation · captured</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="curtailment">The park is curtailed<small>generation · stays quiet</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="bad-meter">One meter lies<small>grid · stays quiet</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="grid-event">Frequency drops 150 mHz<small>grid</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="grid-emergency">Frequency drops 300 mHz<small>grid</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="voltage-sag">One phase sags<small>grid</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="iced-blades">Iced blades<small>generation</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="transformer">Transformer fans fail<small>thermal</small></button>
+              <button class="tab" type="button" aria-pressed="false" data-tab="battery">Battery overheats charging<small>thermal</small></button>
+            </div>
+
+            <div class="explorer-detail">
+              <div class="scen" data-panel="site-silent">
+                <h3>A whole site goes silent</h3>
+                <div class="scen-meta"><span>scenario <b>site-silent</b></span><span>injected: <b>the three turbines stop answering</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~1 min</span><span class="what">The three turbines turn purple, "no data", on every dashboard. Never 0 MW.</span></li>
+                  <li><span class="when">~2.5 min</span><span class="what"><span class="rcv rcv-page">oncall</span>FIRING SiteSilent site=wind-a</span></li>
+                  <li data-kind="quiet"><span class="when">~2.5 min</span><span class="what">DeviceSilent for each turbine. The site alert already says it.</span></li>
+                  <li><span class="when">recovery</span><span class="what"><span class="rcv rcv-page">oncall</span>RESOLVED SiteSilent. The device alerts stay muted, all-clears included.</span></li>
+                </ol>
+                <div class="evidence">
+                  <div class="evidence-head"><span>Captured: webhook-logger</span><span>20 Oct 2026 · times UTC</span></div>
+<pre><span class="page">18:27:56 [oncall] FIRING   SiteSilent severity=critical site=wind-a: No data from any device at wind-a</span>
+<span class="ok">18:32:56 [oncall] RESOLVED SiteSilent severity=critical site=wind-a: No data from any device at wind-a</span></pre>
+                  <p class="evidence-note">DeviceSilent for wt-01, wt-02 and wt-03 went into the same Alertmanager and were muted. Recovery came at 18:28:26. The all-clear waited for the group's 5 minute interval.</p>
+                </div>
+              </div>
+
+              <div class="scen" data-panel="frozen" hidden>
+                <h3>A controller freezes</h3>
+                <div class="scen-meta"><span>scenario <b>frozen-controller</b></span><span>injected: <b>inv-01 answers, but its values stop changing</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~3.5 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING DeviceDataFrozen device=inv-01</span></li>
+                  <li data-kind="quiet"><span class="when">throughout</span><span class="what">Anything else. Every value from inv-01 still looks plausible, which is exactly why the heartbeat is watched.</span></li>
+                </ol>
+                <div class="evidence">
+                  <div class="evidence-head"><span>Captured: webhook-logger</span><span>20 Oct 2026 · times UTC</span></div>
+<pre><span class="shift">18:27:56 [team] FIRING   DeviceDataFrozen severity=warning device=inv-01 site=solar-b: Readings from inv-01 have stopped changing</span></pre>
+                </div>
+              </div>
+
+              <div class="scen" data-panel="grid-trip" hidden>
+                <h3>The grid trips a turbine</h3>
+                <div class="scen-meta"><span>scenario <b>grid-trip</b></span><span>injected: <b>L1 at wt-01 drops to 0.8 pu, under its trip setting</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">wt-01 trips and turns red on the dashboards.</span></li>
+                  <li><span class="when">~2 min</span><span class="what"><span class="rcv rcv-page">oncall</span>FIRING PhaseVoltageCritical device=wt-01 phase=l1</span></li>
+                  <li data-kind="quiet"><span class="when">~2 min</span><span class="what">TurbineFault. The voltage alert says why wt-01 stopped; a fault alert would send someone to fix a turbine that isn't broken.</span></li>
+                  <li><span class="when">recovery</span><span class="what">wt-01 reconnects 60 s later, and the voltage alert stays on through the gap so the trip can't slip through.</span></li>
+                </ol>
+                <div class="evidence">
+                  <div class="evidence-head"><span>Captured: webhook-logger</span><span>20 Oct 2026 · times UTC</span></div>
+<pre><span class="page">18:27:56 [oncall] FIRING   PhaseVoltageCritical severity=critical device=wt-01 phase=l1 site=wind-a: L1 at wt-01 is 0.800 pu, outside ±10%</span>
+<span class="ok">18:32:56 [oncall] RESOLVED PhaseVoltageCritical severity=critical device=wt-01 phase=l1 site=wind-a: L1 at wt-01 is 0.800 pu, outside ±10%</span></pre>
+                  <p class="evidence-note">TurbineFault for wt-01 went into the same Alertmanager and was muted.</p>
+                </div>
+              </div>
+
+              <div class="scen" data-panel="insulation" hidden>
+                <h3>An inverter faults</h3>
+                <div class="scen-meta"><span>scenario <b>insulation-fault</b></span><span>injected: <b>inv-02 reports fault code 201</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">inv-02 turns red and drops to 0 kW.</span></li>
+                  <li><span class="when">~2.5 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING InverterFault device=inv-02 fault_code=201, named from its fault code.</span></li>
+                  <li data-kind="quiet"><span class="when">~2.5 min</span><span class="what">A page. A tripped inverter is a job for the shift, not a reason to wake someone.</span></li>
+                </ol>
+                <div class="evidence">
+                  <div class="evidence-head"><span>Captured: webhook-logger</span><span>20 Oct 2026 · times UTC</span></div>
+<pre><span class="shift">18:27:56 [team] FIRING   InverterFault severity=warning device=inv-02 fault_code=201 site=solar-b: inv-02 tripped: DC insulation fault</span></pre>
+                  <p class="evidence-note">CI's smoke test runs this one through the whole lab on every push: injected at the device, delivered to the shift, then its all-clear.</p>
+                </div>
+              </div>
+
+              <div class="scen" data-panel="curtailment" hidden>
+                <h3>The park is curtailed</h3>
+                <div class="scen-meta"><span>scenario <b>curtailment</b></span><span>injected: <b>12 m/s wind, power limit 30% from the OT workstation</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">The turbines turn blue, "curtailed", flat at about 1.08 MW each under a 3.6 MW curve. A blue band opens between "possible" and "expected".</span></li>
+                  <li data-kind="quiet"><span class="when">throughout</span><span class="what">Any notification at all. A power limit lowers what's expected; it isn't a loss and nobody needs to act.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="bad-meter" hidden>
+                <h3>One meter lies</h3>
+                <div class="scen-meta"><span>scenario <b>bad-meter</b></span><span>injected: <b>the battery's meter reads 50 mHz high; the grid is fine</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">On the battery dashboard, "delivered" drops to about −250 kW while "asked by the grid" stays near 0, and its meter leaves the fleet median.</span></li>
+                  <li><span class="when">~6 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING FrequencyMeterMismatch device=bess-01</span></li>
+                  <li data-kind="quiet"><span class="when">throughout</span><span class="what">Any grid frequency alert. The fleet median ignores one meter.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="grid-event" hidden>
+                <h3>Frequency drops 150 mHz</h3>
+                <div class="scen-meta"><span>scenario <b>grid-event</b></span><span>injected: <b>grid frequency 150 mHz low</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">The battery's reserve responds: "asked by the grid" and "delivered" both step up to about 750 kW.</span></li>
+                  <li><span class="when">~6 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING GridFrequencyDeviation criterion=100mHz-5m</span></li>
+                  <li data-kind="quiet"><span class="when">~15 min</span><span class="what">The 15-minute criterion, which fires underneath. The 5-minute one already says it.</span></li>
+                  <li><span class="when">recovery</span><span class="what">RESOLVED within 5 minutes, both criteria in one notification.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="grid-emergency" hidden>
+                <h3>Frequency drops 300 mHz</h3>
+                <div class="scen-meta"><span>scenario <b>grid-emergency</b></span><span>injected: <b>grid frequency 300 mHz low</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">The battery delivers its whole 1 MW reserve.</span></li>
+                  <li><span class="when">~2 min</span><span class="what"><span class="rcv rcv-page">oncall</span>FIRING GridFrequencyCritical. All frequency containment reserve is in use.</span></li>
+                  <li data-kind="quiet"><span class="when">~2 min</span><span class="what">GridFrequencyDeviation. The critical alert mutes it.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="voltage-sag" hidden>
+                <h3>One phase sags</h3>
+                <div class="scen-meta"><span>scenario <b>voltage-sag</b></span><span>injected: <b>L2 at wt-02 sits at 0.93 pu</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~11 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING PhaseVoltageOutOfTolerance device=wt-02 phase=l2</span></li>
+                  <li><span class="when">throughout</span><span class="what">wt-02 keeps producing: 0.93 pu is well above its 0.85 trip setting, so this is a heads-up, not an outage.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="iced-blades" hidden>
+                <h3>Iced blades</h3>
+                <div class="scen-meta"><span>scenario <b>iced-blades</b></span><span>injected: <b>wt-03 makes 60% of what its wind should give</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">~30 s</span><span class="what">On the power curve, wt-03's points sink to 60% of the curve.</span></li>
+                  <li><span class="when">~16 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING TurbineUnderperforming device=wt-03. The 10-minute average has to stay under 80% for 10 minutes.</span></li>
+                  <li data-kind="quiet"><span class="when">22:00 to 07:00</span><span class="what">A night-time notification. Lost energy is money, not safety, so it waits for the morning shift.</span></li>
+                  <li><span class="when">recovery</span><span class="what">The all-clear takes up to 10 minutes, while the average recovers.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="transformer" hidden>
+                <h3>Transformer fans fail</h3>
+                <div class="scen-meta"><span>scenario <b>transformer-cooling</b></span><span>injected: <b>cooling fails at moderate load</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">right away</span><span class="what">The oil starts climbing towards twice the rise its load explains.</span></li>
+                  <li><span class="when">~24 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING TransformerCoolingDegraded device=sub-01</span></li>
+                  <li><span class="when">at that point</span><span class="what">The oil is around 55 °C, 30 °C short of the 85 °C warning. No temperature alarm would have seen it yet.</span></li>
+                </ol>
+              </div>
+
+              <div class="scen" data-panel="battery" hidden>
+                <h3>Battery overheats while charging</h3>
+                <div class="scen-meta"><span>scenario <b>battery-overheat</b></span><span>injected: <b>HVAC fails while charging at full power</b></span></div>
+                <ol class="plain steps">
+                  <li><span class="when">right away</span><span class="what">Cells climb almost 3 °C a minute.</span></li>
+                  <li><span class="when">~8 min</span><span class="what"><span class="rcv rcv-page">oncall</span>FIRING BatteryHeatingWhileCharging. Stop charging before the battery management system trips.</span></li>
+                  <li><span class="when">~12 min</span><span class="what">Left alone, the BMS trips at 55 °C and the battery turns red.</span></li>
+                  <li><span class="when">~13 min</span><span class="what"><span class="rcv rcv-page">oncall</span>RESOLVED BatteryHeatingWhileCharging: it isn't charging any more.</span></li>
+                  <li><span class="when">~15 min</span><span class="what"><span class="rcv rcv-shift">team</span>FIRING BatteryFault, plus BatteryCellTemperatureHigh, no longer muted by the critical.</span></li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <p class="verify">Where the evidence comes from: the expected sequences and times are from <code>scripts/scenario.sh</code>, measured on the full lab. The captured lines are real output from the lab's own Alertmanager config and webhook-logger, recorded 20 October 2026. Each scenario's alerts went straight into Alertmanager, the way <code>alertmanager/test.sh</code> sends them; in the running lab, Prometheus raises them from the device data.</p>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="checks" aria-labelledby="checks-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 05 · AUTOMATED CHECKS</span>
+            <h2 class="display" id="checks-title">Tested at every layer</h2>
+            <p class="muted">Each layer has a test that fails for the kind of mistake that layer makes. Most of them check the layers against each other.</p>
+          </div>
+        </div>
+        <div class="table-box">
+          <table class="table">
+            <thead><tr><th scope="col">Layer</th><th scope="col">What breaks it</th><th scope="col">The check</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Device models</th><td>Physics or state logic</td><td>Unit tests per device type</td></tr>
+              <tr><th scope="row">Between layers</th><td>A renamed metric, a moved register, a curve changed in one place</td><td>Contract tests: register map, collector config, rules, runbook, dashboards, scripts and CI all checked against each other</td></tr>
+              <tr><th scope="row">Alert rules</th><td>A rule that fires when it shouldn't, or stays quiet when it should fire</td><td>promtool unit tests, 67 of the 98 cases checking that an alert stays quiet</td></tr>
+              <tr><th scope="row">Routing and inhibition</th><td>A page to the wrong person, or a symptom that isn't muted</td><td>amtool for routing, a real Alertmanager for inhibition</td></tr>
+              <tr><th scope="row">The running lab</th><td>Anything between a register and a receiver</td><td><code>smoke-test.sh</code>: a real fault, injected, through to its notification and its all-clear</td></tr>
+              <tr><th scope="row">Segmentation</th><td>A route that shouldn't exist</td><td><code>check-segmentation.sh</code>, from inside every network</td></tr>
+              <tr><th scope="row">Delivery</th><td>A bundle that won't install offline</td><td>CI deletes every image, blocks the registries and installs from the bundle</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="plain bullets">
+          <li><b>Every push and pull request:</b> shellcheck, the unit tests in the pinned Python image with no network, config checks with the pinned tools, then the whole lab with the smoke test, the segmentation check and the scenario script.</li>
+          <li><b>Main and manual runs:</b> build the offline bundle, delete every image, block the registries, install from the bundle, and run the smoke test and segmentation check again on the installed copy.</li>
+          <li><b>CI checks itself too:</b> a test fails if an action isn't pinned to a commit, or if CI stops running one of the lab's scripts.</li>
+        </ul>
+        <div class="evidence">
+          <div class="evidence-head"><span>Captured: tests run locally</span><span>20 Oct 2026 · Prometheus 3.5.0, Alertmanager 0.28.1</span></div>
+<pre>$ python -m unittest discover -s tests
+Ran 137 tests in 1.413s
+<span class="ok">OK</span>
+
+$ promtool check rules prometheus/rules/*.yml
+  SUCCESS: 10 rules found   (comms)
+  SUCCESS: 9 rules found    (generation)
+  SUCCESS: 8 rules found    (grid)
+  SUCCESS: 8 rules found    (thermal)
+
+$ alertmanager/test.sh
+-- routing
+ok    alertname=SiteSilent severity=critical site=wind-a -&gt; oncall
+ok    alertname=TurbineUnderperforming severity=warning device=wt-02 -&gt; team
+ok    alertname=InverterGridTrip severity=info device=inv-01 -&gt; log
+-- inhibition
+Critical voltage mutes its own warning, on that phase, and the trip it caused
+ok      muted: alertname=PhaseVoltageOutOfTolerance phase=l1
+ok      active: alertname=PhaseVoltageOutOfTolerance phase=l2
+ok      muted: alertname=TurbineFault device=wt-01
+ok      active: alertname=TurbineFault device=wt-02
+(9 routing checks and 22 inhibition checks in all, every one ok)</pre>
+        </div>
+      </section>
+
+      <section class="section-alt" id="tradeoffs" aria-labelledby="trade-title">
+        <div class="wrap section stackv">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">// 06 · TRADE-OFFS</span>
+              <h2 class="display" id="trade-title">What's simulated, what's proven, what would change</h2>
+              <p class="muted">The lab keeps every step small and visible. A real site is built differently, and some things would never be done the way the lab does them. <a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/docs/real-plants.md">From the lab to real plants</a> goes into detail.</p>
+            </div>
+          </div>
+          <div class="grid-3">
+            <div class="panel panel-stack truth">
+              <h3>Simulated</h3>
+              <ul class="plain">
+                <li>The devices and their physics: wind field, irradiance, battery, transformer heat</li>
+                <li>Grid events and faults, injected from scenario files</li>
+                <li>The networks: Docker networks on one host, not firewalls and VLANs</li>
+                <li>Modbus TCP on every device</li>
+              </ul>
+            </div>
+            <div class="panel panel-stack truth truth-ok">
+              <h3>Proven in the lab, every push</h3>
+              <ul class="plain">
+                <li>Every allowed and blocked path, from inside each network</li>
+                <li>The gateway refusing writes</li>
+                <li>Every alert rule, including the cases where it must stay quiet</li>
+                <li>Routing and inhibition on a real Alertmanager</li>
+                <li>A device fault through to its notification and back</li>
+                <li>The offline install, with the registries blocked</li>
+              </ul>
+            </div>
+            <div class="panel panel-stack truth truth-gap">
+              <h3>Not validated, needs real equipment</h3>
+              <ul class="plain">
+                <li>Vendor register maps, agreed polling rates and timing</li>
+                <li>IEC 60870-5-104 or IEC 61850 station gateways and historians</li>
+                <li>Physical firewalls, VLANs and data diodes</li>
+                <li>Scale, latency, and a clustered Alertmanager</li>
+                <li>Change control and maintenance windows on a live site</li>
+              </ul>
+            </div>
+          </div>
+          <div class="table-box">
+            <table class="table">
+              <thead><tr><th scope="col">Area</th><th scope="col">In this lab</th><th scope="col">At a real site</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Where data is read</th><td>From each device, through a read-only gateway</td><td>From the station gateway, the plant's SCADA or the historian. Never from protection relays</td></tr>
+                <tr><th scope="row">Protocols</th><td>Modbus TCP everywhere</td><td>IEC 60870-5-104 and IEC 61850 at substations, OPC UA or Modbus at plants</td></tr>
+                <tr><th scope="row">Direction</th><td>Each zone reads from the zone below</td><td>Often pushed outward from OT, or one way through a data diode</td></tr>
+                <tr><th scope="row">Notifications</th><td>webhook-logger</td><td>Pager, the control room's alarm list, ticketing</td></tr>
+                <tr><th scope="row">Watchdog</th><td>Visible in the logger</td><td>An independent dead man's switch that alarms when it stops</td></tr>
+                <tr><th scope="row">Alertmanager</th><td>One instance</td><td>A cluster of two or three</td></tr>
+                <tr><th scope="row">Grafana</th><td>Local admin, HTTP on localhost</td><td>Central login, HTTPS from the internal CA</td></tr>
+                <tr><th scope="row">Inventory</th><td>Hand-written <code>inventory.toml</code></td><td>Generated from the asset register, reviewed in git</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap section stackv" id="lessons" aria-labelledby="lessons-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">// 07 · LESSONS LEARNED</span>
+            <h2 class="display" id="lessons-title">What I'd tell myself at commit one</h2>
+          </div>
+        </div>
+        <ul class="plain lessons">
+          <li><h3>Going blind looks exactly like an all-clear</h3><p>When a device stops answering, every alert built on its data resolves, because the series are gone, not because anything got better. The no-data alerts have to mute their dependents' resolved notifications too, or the shift gets a wave of false all-clears at the worst possible moment.</p></li>
+          <li><h3>The rule tests that matter most say "don't fire"</h3><p>67 of the 98 rule test cases check that an alert stays quiet: a calm night, a curtailed park, dusk, a storm stop, one bad meter. Firing is easy to get right. Staying quiet when it should is what earns an alert people's trust.</p></li>
+          <li><h3>One meter is an opinion</h3><p>Frequency is the same across the whole synchronous area, so one meter disagreeing is a meter problem. Taking the median of at least three turns what would have been a page into a warning for the shift.</p></li>
+          <li><h3>Monitoring shouldn't choose what it polls</h3><p>An exporter that takes its target as a scrape parameter would let the IT side generate traffic into OT. A collector in the DMZ with a fixed schedule takes that choice away, and the scrape config never names a device.</p></li>
+          <li><h3>Image IDs aren't portable</h3><p>Docker's classic and containerd image stores give the same image different IDs, so a bundle built on Docker Desktop would fail its check on a Linux server. Verifying platform and filesystem layers instead makes the offline install work on both.</p></li>
+        </ul>
+      </section>
+
+      <section class="wrap next-wrap" aria-label="Next project">
+        <a class="next" href="platform.html">
+          <span><span class="label">Next project</span><strong>Cloud-native deployment platform</strong></span>
+          <svg width="28" height="28" viewBox="0 0 16 16" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"></path></svg>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer">
+        <span>Tested and deployed by GitHub Actions to GitHub Pages</span>
+        <span>build <a data-build href="https://github.com/MPeets/devops-portfolio/actions">local</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
