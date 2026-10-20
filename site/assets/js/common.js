@@ -21,6 +21,24 @@
     });
   });
 
+  // Tabs: in a [data-tabs] root, button [data-tab="x"] shows panel [data-panel="x"].
+  // Without JavaScript every panel stays visible, so nothing is lost.
+  document.querySelectorAll("[data-tabs]").forEach((root) => {
+    const tabs = Array.from(root.querySelectorAll("[data-tab]"));
+    const panels = Array.from(root.querySelectorAll("[data-panel]"));
+
+    function show(id) {
+      tabs.forEach((t) => t.setAttribute("aria-pressed", String(t.getAttribute("data-tab") === id)));
+      panels.forEach((p) => {
+        p.hidden = p.getAttribute("data-panel") !== id;
+      });
+    }
+
+    tabs.forEach((t) => t.addEventListener("click", () => show(t.getAttribute("data-tab"))));
+    const start = tabs.find((t) => t.getAttribute("aria-pressed") === "true") || tabs[0];
+    if (start) show(start.getAttribute("data-tab"));
+  });
+
   // Steppers: buttons [data-step], panels [data-step-detail], Back/Next.
   document.querySelectorAll("[data-stepper]").forEach((root) => {
     const buttons = Array.from(root.querySelectorAll("[data-step]"));

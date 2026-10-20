@@ -24,7 +24,7 @@
       const id = btn.getAttribute("data-cmd");
       buttons.forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
       cwd.textContent = btn.getAttribute("data-cwd");
-      line.textContent = btn.textContent;
+      line.textContent = btn.getAttribute("data-line") || btn.textContent;
       outputs.forEach((out) => {
         out.hidden = true;
       });
