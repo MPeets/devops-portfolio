@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans+Condensed:wght@600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
     <link rel="stylesheet" href="assets/css/styles.css">
     <script src="assets/js/common.js" defer></script>
+    <script src="assets/js/ot.js" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -54,7 +55,7 @@
         <dl class="meta">
           <div><dt>Role</dt><dd>Solo, commit by commit</dd></div>
           <div><dt>Stack</dt><dd>Prometheus, Alertmanager, Grafana, Telegraf, Modbus TCP, Python</dd></div>
-          <div><dt>Tested</dt><dd>137 unit tests, 98 alert rule cases, 12 rehearsed incidents</dd></div>
+          <div><dt>Tested</dt><dd><a href="https://github.com/MPeets/ot-energy-monitoring/tree/main/tests">137 unit tests</a>, <a href="https://github.com/MPeets/ot-energy-monitoring/tree/main/prometheus/tests">98 alert rule cases</a>, <a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/scripts/scenario.sh">12 rehearsed incidents</a></dd></div>
           <div><dt>Repo</dt><dd><a href="https://github.com/MPeets/ot-energy-monitoring">MPeets/ot-energy-monitoring</a></dd></div>
         </dl>
         <nav class="outline" aria-label="Case study sections">
@@ -373,6 +374,36 @@ $ python -m fleet.cli --unit 12 dump modbus-gateway
             </div>
           </div>
 
+          <span class="label">Replay: one incident through the whole pipeline</span>
+          <div class="replay" data-replay data-speed="40">
+            <div class="replay-head">
+              <div class="tablist" role="group" aria-label="Pick an incident to replay">
+                <button class="tab" type="button" aria-pressed="true" data-replay-scenario="site-silent">A site goes silent</button>
+                <button class="tab" type="button" aria-pressed="false" data-replay-scenario="grid-trip">The grid trips a turbine</button>
+              </div>
+              <div class="actions">
+                <button class="btn btn-primary" type="button" data-replay-play>Play</button>
+                <button class="btn btn-ghost" type="button" data-replay-step>Step</button>
+                <button class="btn btn-ghost" type="button" data-replay-restart>Restart</button>
+              </div>
+            </div>
+            <ol class="plain replay-stages">
+              <li class="stage-card" data-stage="devices" data-tone="ok"><span class="label">OT</span><span class="stage-name">Devices</span><span class="stage-state" data-stage-state>All seven devices answering.</span></li>
+              <li class="stage-card" data-stage="collector" data-tone="ok"><span class="label">DMZ</span><span class="stage-name">Collector</span><span class="stage-state" data-stage-state>Reading every device through the gateway, every 10 s.</span></li>
+              <li class="stage-card" data-stage="prometheus" data-tone="ok"><span class="label">IT</span><span class="stage-name">Prometheus</span><span class="stage-state" data-stage-state>Scraping the collector. Nothing pending.</span></li>
+              <li class="stage-card" data-stage="alertmanager" data-tone="idle"><span class="label">IT</span><span class="stage-name">Alertmanager</span><span class="stage-state" data-stage-state>Nothing to route.</span></li>
+              <li class="stage-card" data-stage="receiver" data-tone="idle"><span class="label">IT · on-call</span><span class="stage-name">Receiver</span><span class="stage-state" data-stage-state>Quiet, apart from the Watchdog.</span></li>
+            </ol>
+            <div class="replay-track" aria-hidden="true"><div class="replay-fill" data-replay-fill></div></div>
+            <div class="replay-head">
+              <span class="replay-clock" data-replay-clock>lab time 0:00 of 8:00</span>
+              <span class="small faint">about 20 seconds to play, or step through each change</span>
+            </div>
+<pre class="replay-log" data-replay-log aria-live="polite" data-empty="true">Press Play, or Step through it one change at a time.</pre>
+            <p class="verify small">How it's built: every change happens when the lab's own settings say it would. The collector reads every 10 s, each alert waits out its <code>for</code> (and PhaseVoltageCritical its <code>keep_firing_for</code>), and Alertmanager waits 30 s to group and 5 min between notifications. The receiver lines are the ones captured on 20 October. When the fault clears is picked for the replay.</p>
+          </div>
+
+          <span class="label">All twelve incidents</span>
           <div class="explorer" data-tabs>
             <div class="explorer-list" role="group" aria-label="Pick an incident">
               <button class="tab" type="button" aria-pressed="true" data-tab="site-silent">A whole site goes silent<small>comms · captured</small></button>
@@ -552,13 +583,13 @@ $ python -m fleet.cli --unit 12 dump modbus-gateway
           <table class="table">
             <thead><tr><th scope="col">Layer</th><th scope="col">What breaks it</th><th scope="col">The check</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Device models</th><td>Physics or state logic</td><td>Unit tests per device type</td></tr>
-              <tr><th scope="row">Between layers</th><td>A renamed metric, a moved register, a curve changed in one place</td><td>Contract tests: register map, collector config, rules, runbook, dashboards, scripts and CI all checked against each other</td></tr>
-              <tr><th scope="row">Alert rules</th><td>A rule that fires when it shouldn't, or stays quiet when it should fire</td><td>promtool unit tests, 67 of the 98 cases checking that an alert stays quiet</td></tr>
-              <tr><th scope="row">Routing and inhibition</th><td>A page to the wrong person, or a symptom that isn't muted</td><td>amtool for routing, a real Alertmanager for inhibition</td></tr>
-              <tr><th scope="row">The running lab</th><td>Anything between a register and a receiver</td><td><code>smoke-test.sh</code>: a real fault, injected, through to its notification and its all-clear</td></tr>
-              <tr><th scope="row">Segmentation</th><td>A route that shouldn't exist</td><td><code>check-segmentation.sh</code>, from inside every network</td></tr>
-              <tr><th scope="row">Delivery</th><td>A bundle that won't install offline</td><td>CI deletes every image, blocks the registries and installs from the bundle</td></tr>
+              <tr><th scope="row">Device models</th><td>Physics or state logic</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/tree/main/tests">Unit tests</a> per device type</td></tr>
+              <tr><th scope="row">Between layers</th><td>A renamed metric, a moved register, a curve changed in one place</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/tree/main/tests">Contract tests</a>: register map, collector config, rules, runbook, dashboards, scripts and CI all checked against each other</td></tr>
+              <tr><th scope="row">Alert rules</th><td>A rule that fires when it shouldn't, or stays quiet when it should fire</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/tree/main/prometheus/tests">promtool unit tests</a>, 67 of the 98 cases checking that an alert stays quiet</td></tr>
+              <tr><th scope="row">Routing and inhibition</th><td>A page to the wrong person, or a symptom that isn't muted</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/alertmanager/test.sh">amtool for routing, a real Alertmanager for inhibition</a></td></tr>
+              <tr><th scope="row">The running lab</th><td>Anything between a register and a receiver</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/scripts/smoke-test.sh"><code>smoke-test.sh</code></a>: a real fault, injected, through to its notification and its all-clear</td></tr>
+              <tr><th scope="row">Segmentation</th><td>A route that shouldn't exist</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/scripts/check-segmentation.sh"><code>check-segmentation.sh</code></a>, from inside every network</td></tr>
+              <tr><th scope="row">Delivery</th><td>A bundle that won't install offline</td><td><a href="https://github.com/MPeets/ot-energy-monitoring/blob/main/.github/workflows/ci.yml">CI</a> deletes every image, blocks the registries and installs from the bundle</td></tr>
             </tbody>
           </table>
         </div>

@@ -2577,6 +2577,255 @@ code,
   margin-bottom: -12px;
 }
 
+/* Terminal: where each sample comes from */
+
+.cmd {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+}
+
+.cmd-repo {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.cmd[aria-pressed="true"] .cmd-repo {
+  color: var(--accent);
+}
+
+.term-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 6px;
+}
+
+.term-source .pill {
+  font-size: 11.5px;
+  padding: 3px 9px;
+}
+
+/* Headline numbers, each with its evidence */
+
+.stat-how {
+  font-size: 13.5px;
+  color: var(--faint);
+}
+
+.stat-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: auto;
+}
+
+.stat-links a {
+  display: inline-block;
+  padding-block: 6px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* Home: OT, DMZ and IT at a glance */
+
+.topo {
+  gap: 0;
+}
+
+.topo .label {
+  margin-bottom: 12px;
+}
+
+.zone {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--panel-2);
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.zone b {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.zone-ot {
+  border-style: dashed;
+}
+
+.conduit {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 22px;
+  padding: 10px 0 10px 22px;
+  border-left: 2px solid var(--dim);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.conduit::after {
+  content: "";
+  position: absolute;
+  left: -7px;
+  bottom: -1px;
+  border: 6px solid transparent;
+  border-top: 7px solid var(--dim);
+  border-bottom: 0;
+}
+
+.conduit .no {
+  color: #ff8a7d;
+}
+
+/* Alert lifecycle replay */
+
+.replay {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.replay-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.replay-clock {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.replay-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: 10px;
+}
+
+.stage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 132px;
+  padding: 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.stage-card .label {
+  font-size: 11.5px;
+}
+
+.stage-name {
+  font-weight: 600;
+}
+
+.stage-state {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.stage-card[data-tone="ok"] {
+  border-color: #2b4a39;
+}
+
+.stage-card[data-tone="wait"] {
+  border-color: #6b5530;
+  background: #17140d;
+}
+
+.stage-card[data-tone="bad"] {
+  border-color: #7a3a32;
+  background: #1a1111;
+}
+
+.stage-card[data-tone="silent"] {
+  border-color: #6f4a8a;
+  background: #16121b;
+}
+
+.stage-card[data-tone="mute"] {
+  border-style: dashed;
+}
+
+.stage-card.changed {
+  animation: flash 0.9s ease-out;
+}
+
+.replay-track {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+}
+
+.replay-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 4px;
+  background: var(--accent);
+}
+
+.replay-log {
+  min-height: 74px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #232a2f;
+  border-radius: 8px;
+  background: var(--inset);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--faint);
+}
+
+.replay-log .page {
+  color: #ff8a7d;
+}
+
+.replay-log .ok {
+  color: var(--ok);
+}
+
+@keyframes flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 169, 59, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(242, 169, 59, 0);
+  }
+}
+
 /* Narrow screens: flows stack, so their chevrons point down */
 @media (max-width: 640px) {
   .flow {
@@ -2591,6 +2840,10 @@ code,
 
   .flow-step {
     flex-basis: auto;
+  }
+
+  .stage-card {
+    min-height: 0;
   }
 }
 
